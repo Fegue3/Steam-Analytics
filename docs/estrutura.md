@@ -27,7 +27,8 @@ Steam-Analytics/
 ├── README.md                    descrição + como correr
 ├── requirements.txt             dependências
 ├── docs/
-│   └── estrutura.md             este documento
+│   ├── estrutura.md             este documento
+│   └── timeline.md              o que foi feito, por ordem e por quem
 ├── config/
 │   ├── games.csv                a lista: appid, name, category, selection_date_utc
 │   ├── categories.json          regras de classificação do seletor
