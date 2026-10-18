@@ -1,0 +1,76 @@
+{
+  "created_utc": "2026-10-12T17:18:54+00:00",
+  "method": "owners",
+  "definition": "TOP N dos candidatos que restam após remover jogos atribuídos a outras categorias",
+  "planned_games": 500,
+  "selected_games": 500,
+  "complete": true,
+  "categories": {
+    "competitive": {
+      "target": 100,
+      "candidates": 11133,
+      "selected": 100
+    },
+    "aaa": {
+      "target": 100,
+      "candidates": 630,
+      "selected": 100
+    },
+    "indie": {
+      "target": 100,
+      "candidates": 64488,
+      "selected": 100
+    },
+    "strategy_sim": {
+      "target": 100,
+      "candidates": 33447,
+      "selected": 100
+    },
+    "survival_coop": {
+      "target": 100,
+      "candidates": 14888,
+      "selected": 100
+    }
+  },
+  "assignment_priority_by_candidate_scarcity": [
+    "aaa",
+    "competitive",
+    "survival_coop",
+    "strategy_sim",
+    "indie"
+  ],
+  "data_sources_succeeded": [
+    "tag:FPS",
+    "tag:MOBA",
+    "tag:PvP",
+    "tag:Battle Royale",
+    "tag:Indie",
+    "genre:Indie",
+    "tag:Strategy",
+    "tag:Simulation",
+    "tag:City Builder",
+    "tag:Management",
+    "genre:Strategy",
+    "genre:Simulation",
+    "tag:Survival",
+    "tag:Crafting",
+    "tag:Co-op",
+    "tag:Online Co-Op",
+    "tag:Open World Survival Craft",
+    "all:0",
+    "all:1",
+    "all:2"
+  ],
+  "data_sources_failed": [],
+  "http_requests": 0,
+  "cache_hits": 20,
+  "notes": [
+    "AAA é apenas proxy por editoras grandes e preço > 0; validar manualmente.",
+    "Tags/géneros são uma união OR e podem ter falsos positivos.",
+    "owners são intervalos estimados; não são vendas.",
+    "CCU SteamSpy é pico de ontem, não jogadores ativos agora.",
+    "Ordenar por owners_min, desempatar por owners_max, ccu e reviews (ou --ranking ccu).",
+    "Podem existir jogos não publicados, DLC ou jogos sem suporte adequado: confirmar antes de iniciar recolha.",
+    "Nenhuma execução com fontes falhadas deve ser tratada como seleção definitiva."
+  ]
+}
