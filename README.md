@@ -1,118 +1,76 @@
-# Steam Game Selector — seleção auditável de 500 jogos
+# Steam Analytics
 
-**Projeto para o trabalho de Ciência de Dados (rascunho técnico).** Seleciona **100 jogos distintos por grupo** a partir do SteamSpy, recorrendo a uniões lógicas (OU) de etiquetas e géneros. **Não monitoriza ainda jogadores de hora a hora**; esta é apenas a fase de seleção inicial. O código foi testado localmente com respostas simuladas; a execução real depende do acesso ao SteamSpy.
+**Projeto de Ciência de Dados (UBI, MEI 2026/27).** Monitorização da atividade e da popularidade de 500 jogos da Steam: jogadores de hora a hora, preços, descontos e avaliações, em 5 categorias de 100 jogos.
 
-## 1. Configuração
+**Estado atual:** só a **seleção dos jogos** está feita. As recolhas, o processamento, o notebook e a app estão planeados. A estrutura do repositório (o que existe e o que falta) está em [`docs/estrutura.md`](docs/estrutura.md).
 
-Usar Python 3.10+:
+## 1. Instalação
+
+Python 3.10+ e uma dependência (`requests`). Nenhuma API precisa de chave e não é preciso instalar o projeto.
 
 ```bash
-python -m venv .venv
-# Windows PowerShell: .venv\\Scripts\\Activate.ps1
-# macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Executar os comandos **na pasta onde está este README**.
+## 2. Seleção dos jogos
 
-## 2. Começar com um teste pequeno (recomendado)
-
-```bash
-python -m src.select_games --per-category 5 --catalog-pages 1
-```
-
-Resultado: até 25 jogos, para confirmar ligação à API, campos e seleção. A categoria AAA apenas procura editoras em `--catalog-pages` páginas do catálogo global.
-
-## 3. Seleção completa dos 500 jogos
+Todos os comandos correm **na raiz do repositório**.
 
 ```bash
-python -m src.select_games --per-category 100 --catalog-pages 3 --strict
+python3 -m unittest discover -s tests -v   # testes offline (sem internet)
+python3 -m src.select_games                # gera config/games.csv
 ```
 
-Se tiveres menos de 100 AAA válidos, aumenta as páginas:
-
-```bash
-python -m src.select_games --per-category 100 --catalog-pages 5 --strict
-```
-
-**Nota:** o endpoint `request=all` tem intervalo mínimo de ~60 segundos entre pedidos. Com cinco páginas não esperes resultados instantâneos. As consultas são guardadas em cache por 24 horas, para evitar repetir pedidos desnecessários.
-
-## 4. Saídas
+O resultado é **`config/games.csv`**, a lista que as recolhas usam:
 
 ```
-config/categories.json        # regras das 5 categorias; editável
-config/exclusions.csv         # IDs a excluir após revisão manual
-src/select_games.py           # recolhe, classifica e seleciona
-src/steamspy_client.py        # HTTP, cache, retries e rate limit
-src/audit_games.py            # auditoria ao CSV gerado
-logs/selection.log            # registo de operações
-
-# Criados pela execução:
-data/cache/*.json             # respostas originais da API (cache 24h)
-data/output/all_candidates.csv # todos os candidatos por grupo
-data/output/games_500.csv    # seleção completa (só se houver 500)
-data/output/games_INCOMPLETE.csv # se faltar algum grupo
-data/output/report.json       # contagens, fontes e falhas
+appid,name,category,selection_date_utc
+730,Counter-Strike 2,competitive,2026-10-18T18:52:31+00:00
+570,Dota 2,competitive,2026-10-18T18:52:31+00:00
 ```
 
-Valida o CSV:
+O seletor só grava se a lista estiver completa (100 jogos por categoria, sem AppIDs repetidos, todos com nome) e se nenhuma fonte tiver falhado. Caso contrário termina com código 2 e **não toca** na lista anterior. O resumo de cada execução (elegíveis por categoria, jogadores mínimo e mediano, rejeições por motivo) fica em `logs/selection.log`.
 
-```bash
-python -m src.audit_games data/output/games_500.csv
-```
+Demora **~1,5 min sem cache** e **~15 s com cache** (`data/cache/`: 24 h para listas e loja, 1 h para jogadores).
 
-Caso queiras escolher mais pela atividade recente do que por proprietários estimados:
+**A lista é uma fotografia da hora em que corre** (`selection_date_utc`): o ranking usa os jogadores desse momento. A versão oficial gera-se logo antes da recolha e o commit dessa versão fica como referência.
 
-```bash
-python -m src.select_games --ranking ccu --per-category 100 --catalog-pages 3 --strict
-```
+## 3. Como funciona
 
-**Não confundir:** o campo `ccu` do SteamSpy é o pico de utilizadores simultâneos **do dia anterior**, não o número de utilizadores em tempo real. O ranking padrão `owners` usa o limite inferior da estimativa de proprietários, com desempate por limite superior, CCU e volume de reviews; não são vendas verificadas.
+| Passo | Fonte | O quê |
+|---|---|---|
+| 1. Descoberta | SteamSpy `tag`/`genre` (~42 listas) + Steam `ISteamChartsService/GetMostPlayedGames` | União (OU) das listas das categorias. O TOP 100 oficial cobre jogos que faltam no SteamSpy (p.ex. Dota 2) |
+| 2. Pool | — | Remove exclusões manuais, DLC/demos/OST pelo nome e jogos com CCU de ontem < 50 |
+| 3. Detalhes | Steam `IStoreBrowseService/GetItems` (lotes de 200) + `IStoreService/GetTagList` | Etiquetas **com peso**, funcionalidades declaradas (Online PvP, Online Co-op…), editora, preço, tipo (jogo/software) e nome atual |
+| 4. Classificação | `src/classify.py` | **Uma** categoria principal por jogo (regras abaixo). Remove software/companheiros de ecrã e jogos com CCU de ontem < 100 |
+| 5. Jogadores | Steam `ISteamUserStats/GetNumberOfCurrentPlayers` (6 em paralelo) | Jogadores **agora** para todos os elegíveis, com a **mesma fonte que a recolha horária vai usar**. Jogos sem resposta (p.ex. Deadlock, 404) ficam de fora, porque não seria possível recolhê-los |
+| 6. Escolha | — | **TOP 100 por jogadores atuais** em cada categoria |
 
-## 5. Critérios de seleção
+### Regras de classificação (`config/categories.json`)
 
-A correspondência a uma categoria utiliza **OU**: basta pertencer a um dos géneros ou etiquetas definidos em `config/categories.json`.
+As categorias combinam etiquetas com **OU**: basta uma (p.ex. Strategy **ou** Simulation **ou** City Builder). Mas ter a etiqueta não chega, porque qualquer jogo pode ter uma etiqueta com 3 votos. Ela tem de estar entre as **5 mais votadas** do jogo. Etiquetas genéricas (Strategy, Simulation, Co-op, Online Co-Op, Survival, Automobile Sim) só contam no **top 4**.
 
-- `competitive`: FPS **OU** MOBA **OU** PvP **OU** Battle Royale.
-- `aaa`: **aproximação operacional**, com editora numa lista configurável **E** preço positivo em USD; obtida das páginas `all`, requer verificação humana.
-- `indie`: etiqueta **OU** género Indie.
-- `strategy_sim`: etiquetas Strategy, Simulation, City Builder, Management **OU** géneros Strategy/Simulation.
-- `survival_coop`: Survival, Crafting, Co-op, Online Co-Op **OU** Open World Survival Craft.
+1. **Etiquetas dominantes**:
+   - `competitive`: PvP, Competitive, eSports, MOBA, Battle Royale, Hero/Arena/Extraction Shooter, Fighting. Tem **prioridade**: PUBG tem "Survival" como 1.ª etiqueta mas é competitivo. FPS sozinho não conta (Half-Life não é competitivo).
+   - `strategy_sim` e `survival_coop`: ganha a etiqueta mais bem posicionada. Jogos de desporto (1.ª etiqueta "Sports") não contam como simulação.
+2. **Sem etiqueta dominante**, por esta ordem:
+   1. `competitive`: declara Online PvP/PvP na loja **e** tem, no top 5, uma etiqueta de tiro/combate **e** uma de multijogador (THE FINALS, Call of Duty/Warzone, Battlefield 6, Destiny 2).
+   2. `aaa`: editora da lista + jogo pago + sem "Indie" no top 5. **É um proxy**, não uma classe oficial.
+   3. `indie`: género Indie (lista `genre:Indie` do SteamSpy, declarado pelo programador) ou etiqueta Indie no top 5, e editora fora da lista de grandes editoras.
+   4. `survival_coop`: declara Online Co-op **e** tem etiqueta de co-op no top 10 (Warframe).
+3. Jogos que não encaixam em nenhuma (Path of Exile 2, AION 2, Garry's Mod, ...) ficam de fora.
 
-**Importante:** Estas classes misturam géneros, modos e tipos de produção. Não são uma taxonomia oficial e são parcialmente sobrepostas. O resultado exige validação académica, particularmente para `AAA`. Os jogos que apresentam etiquetas FPS podem ser single-player; não assumimos que qualquer etiqueta individual prova que é um jogo competitivo. Muitos jogos Indie podem ter grandes editoras, etc.
+**Consequência a declarar no relatório:** `aaa` e `indie` não incluem jogos de estratégia, sobrevivência ou competitivos (Valheim conta como `survival_coop`, Civilization como `strategy_sim`, Battlefield 6 como `competitive`).
 
-### Sobre jogos presentes em várias categorias
+### Revisão manual
 
-Primeiro são calculadas as listas/rankings de candidatos de cada categoria. Depois, as categorias com **menos candidatos** recebem prioridade na atribuição, selecionando os TOP 100 **ainda disponíveis**. Este método guloso não garante uma atribuição ótima em todos os casos possíveis; rever o relatório caso faltem jogos. Outros grupos ficam com os 100 mais bem classificados entre os restantes; assim, o CSV final tem 500 AppIDs **únicos**, mas não constitui necessariamente os TOP 100 absolutos de cada categoria. Guardamos `rank_before_dedup` e `other_categories` para auditoria. Se faltar uma categoria, a lista fica marcada como INCOMPLETE.
+Para retirar um jogo, acrescenta-se `appid,reason` a `config/exclusions.csv` e volta-se a correr (com cache, é rápido). As exclusões atuais (VRChat, treinadores de pontaria, …) estão lá com o motivo.
 
-### Revisão manual obrigatória antes de recolher dados
+## 4. Utilização responsável e limites
 
-Abrir `games_500.csv` e `all_candidates.csv` e conferir:
+- Cache em disco; ≥1,1 s entre pedidos SteamSpy; ≥0,5 s entre lotes da loja; no máximo 6 pedidos simultâneos de jogadores (~1700 por seleção, muito abaixo da quota diária de 100 000).
+- Retentativas só para 429/5xx, respeitando `Retry-After`; os 4xx não são repetidos.
+- Sem scraping de HTML, sem proxies, sem contornar bloqueios.
+- A amostra é intencional (TOP 100 por jogadores de cada categoria) e não representa o catálogo da Steam.
 
-1. Se cada entrada é um jogo Steam, e não DLC, soundtrack, demo ou outro conteúdo. O filtro automático por nome é apenas aproximado.
-2. Se está efetivamente lançado e se devolve dados no endpoint de jogadores ativos.
-3. Se a classificação principal faz sentido. **AAA não é classe oficial**; editoras grandes também publicam jogos Indie ou pequenos.
-4. Se uma categoria foi dominada por jogos erradamente classificados. Se sim, acrescentar `appid,reason` a `config/exclusions.csv`, repetir a seleção usando cache e rever novamente.
-5. Se o SteamSpy devolveu menos candidatos do que o esperado, consultar `report.json` e alterar os critérios/páginas, em vez de inventar jogos.
-
-## 6. Robustez, utilização responsável e limites
-
-- Cache de respostas por 24h (recomendado pelo SteamSpy).
-- Intervalo >=1.1 s para pedidos `tag`/`genre` e >=61 s entre pedidos `all`.
-- Retentativas de erros transitórios (429, 5xx), respeito pelo cabeçalho `Retry-After`, registo de falhas.
-- Não faz scraping HTML, não usa proxies nem tenta contornar bloqueios.
-- Dados da SteamSpy são estimativas, não vendas. Não inferir causalidade nem representatividade de todos os jogos Steam a partir dos TOP 100 escolhidos.
-- A disponibilidade da API e a dimensão das listas por etiqueta podem mudar. Verificar o relatório da execução: falhas e faltas de candidatos não devem ser ocultadas.
-- A seleção deve ficar **congelada**, com CSV + data de referência antes da recolha horária, para não alterar o conjunto estudado a meio da experiência.
-
-## 7. Testes locais sem internet
-
-```bash
-python -m unittest discover -s tests -v
-```
-
-## 8. Próxima fase (ainda não implementada aqui)
-
-Utilizar os AppIDs de `games_500.csv` para executar `ISteamUserStats/GetNumberOfCurrentPlayers` a cada hora e guardar snapshots JSON/logs durante 14 dias; os metadados/estimativas do SteamSpy só precisam de atualização diária.
-
-Fontes: API SteamSpy `https://steamspy.com/api.php`, explicação SteamSpy `https://steamspy.com/about`, documentação da Steam `https://partner.steamgames.com/doc/webapi/ISteamUserStats`.
+Fontes: [SteamSpy API](https://steamspy.com/api.php), [Steam Web API — ISteamUserStats](https://partner.steamgames.com/doc/webapi/ISteamUserStats), [IStoreBrowseService](https://steamapi.xpaw.me/#IStoreBrowseService), [ISteamChartsService](https://steamapi.xpaw.me/#ISteamChartsService).

@@ -1,0 +1,262 @@
+{
+  "version": 2,
+  "non_game": {
+    "genres": [
+      "Utilities",
+      "Design & Illustration",
+      "Animation & Modeling",
+      "Audio Production",
+      "Video Production",
+      "Photo Editing",
+      "Web Publishing",
+      "Education",
+      "Software Training",
+      "Accounting",
+      "Game Development"
+    ],
+    "tags": [
+      "Utilities",
+      "Software",
+      "Design & Illustration",
+      "Animation & Modeling",
+      "Audio Production",
+      "Video Production",
+      "Photo Editing",
+      "Game Development",
+      "Desktop Companion"
+    ],
+    "top_k": 3,
+    "note": "Software/companheiros de ecrã: rejeitado se uma destas etiquetas estiver no top 3, ou se o género for um destes."
+  },
+  "broad_tags": {
+    "top_k": 4,
+    "tags": [
+      "Strategy",
+      "Simulation",
+      "Co-op",
+      "Online Co-Op",
+      "Survival",
+      "Automobile Sim"
+    ],
+    "note": "Etiquetas genéricas só contam se estiverem entre as 4 mais votadas."
+  },
+  "fallback_order": [
+    "competitive",
+    "aaa",
+    "indie",
+    "survival_coop"
+  ],
+  "categories": [
+    {
+      "id": "competitive",
+      "label": "Competitivos e multijogador",
+      "type": "genre",
+      "tags": [
+        "PvP",
+        "Competitive",
+        "eSports",
+        "MOBA",
+        "Battle Royale",
+        "Hero Shooter",
+        "Arena Shooter",
+        "Extraction Shooter",
+        "Fighting",
+        "2D Fighter",
+        "3D Fighter"
+      ],
+      "discovery_genres": [],
+      "note": "FPS sozinho não chega (há FPS single-player); exige etiqueta de competição entre as mais votadas.",
+      "priority": 0,
+      "feature_fallback": {
+        "features": [
+          36,
+          49
+        ],
+        "top_tags_any": [
+          [
+            "FPS",
+            "Shooter",
+            "Third-Person Shooter",
+            "Looter Shooter",
+            "Tactical",
+            "Military",
+            "PvP",
+            "Fighting",
+            "Wargame"
+          ],
+          [
+            "Multiplayer",
+            "Massively Multiplayer",
+            "Team-Based",
+            "PvP"
+          ]
+        ],
+        "note": "36 = Online PvP, 49 = PvP declarados na loja + etiqueta de tiro/combate + etiqueta de multijogador no top 5"
+      }
+    },
+    {
+      "id": "strategy_sim",
+      "label": "Estratégia e simulação",
+      "type": "genre",
+      "tags": [
+        "Strategy",
+        "Simulation",
+        "City Builder",
+        "Management",
+        "Grand Strategy",
+        "RTS",
+        "4X",
+        "Turn-Based Strategy",
+        "Real Time Tactics",
+        "Tower Defense",
+        "Automation",
+        "Colony Sim",
+        "Life Sim",
+        "Farming Sim",
+        "Automobile Sim",
+        "Space Sim",
+        "Flight",
+        "Job Simulator"
+      ],
+      "discovery_genres": [
+        "Strategy",
+        "Simulation"
+      ],
+      "note": "Inclui simuladores (condução, vida, quinta) e gestão; jogos de desporto (1.ª etiqueta Sports) não contam.",
+      "not_if_first_tag": [
+        "Sports"
+      ]
+    },
+    {
+      "id": "survival_coop",
+      "label": "Sobrevivência e cooperativos",
+      "type": "genre",
+      "tags": [
+        "Survival",
+        "Open World Survival Craft",
+        "Crafting",
+        "Co-op",
+        "Online Co-Op"
+      ],
+      "discovery_genres": [],
+      "note": "Sobrevivência OU cooperação como característica dominante (top-k etiquetas).",
+      "feature_fallback": {
+        "features": [
+          38
+        ],
+        "top_tags_any": [
+          "Co-op",
+          "Online Co-Op",
+          "PvE",
+          "Co-op Campaign"
+        ],
+        "top_k": 10,
+        "note": "38 = Online Co-op declarado na loja + etiqueta de co-op entre as 10 mais votadas"
+      }
+    },
+    {
+      "id": "aaa",
+      "label": "AAA pagos (aproximação)",
+      "type": "production",
+      "rule": "aaa",
+      "require_paid": true,
+      "min_owners": 0,
+      "exclude_top_tags": [
+        "Indie"
+      ],
+      "publisher_allowlist": [
+        "Electronic Arts",
+        "EA",
+        "Ubisoft",
+        "Ubisoft Entertainment",
+        "Rockstar Games",
+        "Bethesda Softworks",
+        "Xbox Game Studios",
+        "Microsoft Studios",
+        "Activision",
+        "Activision Publishing",
+        "2K",
+        "2K Games",
+        "Square Enix",
+        "Bandai Namco Entertainment",
+        "BANDAI NAMCO Entertainment",
+        "SEGA",
+        "CAPCOM",
+        "Capcom Co., Ltd.",
+        "Warner Bros. Games",
+        "WB Games",
+        "Warner Bros. Interactive Entertainment",
+        "CD PROJEKT RED",
+        "CD PROJEKT",
+        "PlayStation Publishing LLC",
+        "Sony Interactive Entertainment",
+        "KOEI TECMO GAMES CO., LTD.",
+        "Konami Digital Entertainment",
+        "KONAMI",
+        "Deep Silver",
+        "THQ Nordic",
+        "Focus Entertainment",
+        "Larian Studios",
+        "Blizzard Entertainment",
+        "Disney",
+        "LucasArts"
+      ],
+      "note": "Recebe jogos fora dos géneros estudados. Editora grande + jogo pago é proxy, não confirma orçamento.",
+      "discovery_tags": [
+        "Action",
+        "RPG",
+        "Adventure",
+        "Open World"
+      ]
+    },
+    {
+      "id": "indie",
+      "label": "Indie",
+      "type": "production",
+      "rule": "indie",
+      "discovery_tags": [
+        "Indie"
+      ],
+      "discovery_genres": [
+        "Indie"
+      ],
+      "publisher_blocklist": [
+        "Electronic Arts",
+        "EA",
+        "Ubisoft",
+        "Rockstar Games",
+        "Bethesda Softworks",
+        "Xbox Game Studios",
+        "Microsoft Studios",
+        "Activision",
+        "2K",
+        "Square Enix",
+        "Bandai Namco Entertainment",
+        "SEGA",
+        "CAPCOM",
+        "Warner Bros. Games",
+        "WB Games",
+        "CD PROJEKT",
+        "PlayStation Publishing LLC",
+        "Sony Interactive Entertainment",
+        "KOEI TECMO GAMES CO., LTD.",
+        "KONAMI",
+        "Konami Digital Entertainment",
+        "Valve",
+        "KRAFTON, Inc.",
+        "NetEase Games",
+        "Tencent",
+        "NEXON",
+        "Riot Games",
+        "Embracer",
+        "Blizzard Entertainment",
+        "Disney",
+        "LucasArts",
+        "Warner Bros. Interactive Entertainment",
+        "Bandai Namco",
+        "Paradox Interactive"
+      ],
+      "note": "Recebe indies fora dos géneros estudados (roguelikes, plataformas, terror, narrativos, ...)."
+    }
+  ]
+}
