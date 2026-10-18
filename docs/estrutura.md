@@ -51,17 +51,6 @@ Steam-Analytics/
 └── .github/workflows/           agendamento das recolhas
 ```
 
-## Convenções
-
-- **Correr tudo a partir da raiz do repositório** (`python3 -m src.<módulo>`).
-- **Sem venv obrigatório.** Não é preciso instalar o projeto.
-- **Datas sempre em UTC** (ISO 8601, `2026-10-18T18:38:57+00:00`).
-- **Nenhuma API usada até agora precisa de chave.** Se alguma vier a precisar, a chave vai para variáveis de ambiente ou secrets e **nunca** para o repo.
-- **Não publicar caminhos pessoais** (p.ex. `/home/...`) em ficheiros versionados.
-- **Sem emojis** na documentação, no código e nos commits.
-- `config/games.csv` é gerado pelo seletor e não se edita à mão: para tirar um jogo, acrescenta-se a `config/exclusions.csv` e volta-se a correr. O seletor só grava listas completas e válidas.
-- **A lista oficial gera-se logo antes da recolha**, e esse commit fica como referência. Durante a recolha não se volta a correr o seletor.
-
 ## Repositórios
 
 | Repositório | Papel |
@@ -73,12 +62,3 @@ Steam-Analytics/
 
 - **GitHub Actions corre no repo público.**
 - **O repo do grupo é atualizado por etapas**, à medida que cada parte fica pronta.
-
-## Decisões em aberto
-
-- [ ] **Onde se guardam os dados recolhidos:** proposta de um branch `data` órfão (só dados e logs, sem código), com um ficheiro JSON Lines por fonte e por dia.
-- [ ] **Logs das recolhas** no mesmo branch que os dados.
-- [ ] **Fontes diárias:** loja + reviews + SteamSpy (todas ou só algumas).
-- [ ] **Calendário:** piloto de 48 h e janela oficial de 14 dias.
-- [ ] **Hora a que se congela a lista** (o ranking por jogadores depende da hora do dia).
-- [ ] **Divisão do trabalho** entre os três elementos (o enunciado pede % por pessoa).
