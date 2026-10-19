@@ -3,6 +3,8 @@ name: Recolha diaria
 on:
   schedule:
     - cron: "40 5 * * *"
+    # Reserva: so recolhe se a das 05:40 tiver falhado ou nao tiver corrido
+    - cron: "40 18 * * *"
   workflow_dispatch:
 
 permissions:

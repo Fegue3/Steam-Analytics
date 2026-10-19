@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from src.api import SteamPlayersClient, SteamStoreClient
-from src.collect_common import append_jsonl, collection_record, load_games
+from src.collect_common import append_jsonl, collection_record, day_path, load_games
 from src.collect_daily import collect
 
 
@@ -134,6 +134,29 @@ class CollectionUtilityTest(unittest.TestCase):
                 reviews, steamspy = collect(games, Path(tmp))
             self.assertEqual(reviews["n_error"], 1)
             self.assertEqual(steamspy["n_ok"], 1)
+
+    def test_daily_skips_sources_already_collected_today(self):
+        games = [{"appid": 1, "selection_date_utc": "2026-10-18T18:52:31+00:00"}]
+        with tempfile.TemporaryDirectory() as tmp:
+            append_jsonl(day_path(Path(tmp), "reviews"), {"n_ok": 1, "n_error": 0})
+            append_jsonl(day_path(Path(tmp), "steamspy"), {"n_ok": 0, "n_error": 1})
+            with patch("src.collect_daily.collect_reviews") as reviews_call, \
+                    patch("src.collect_daily.collect_steamspy",
+                          return_value={"n_ok": 1, "n_error": 0}) as steamspy_call:
+                reviews, _ = collect(games, Path(tmp))
+            reviews_call.assert_not_called()
+            steamspy_call.assert_called_once()
+            self.assertEqual(reviews["n_ok"], 1)
+
+    def test_daily_force_collects_again(self):
+        games = [{"appid": 1, "selection_date_utc": "2026-10-18T18:52:31+00:00"}]
+        with tempfile.TemporaryDirectory() as tmp:
+            append_jsonl(day_path(Path(tmp), "reviews"), {"n_ok": 1, "n_error": 0})
+            ok = {"n_ok": 1, "n_error": 0}
+            with patch("src.collect_daily.collect_reviews", return_value=ok) as reviews_call, \
+                    patch("src.collect_daily.collect_steamspy", return_value=ok):
+                collect(games, Path(tmp), force=True)
+            reviews_call.assert_called_once()
 
 
 if __name__ == "__main__":
