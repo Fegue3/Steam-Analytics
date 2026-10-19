@@ -13,7 +13,35 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Os crons so recolhem dentro do periodo definido nas variaveis do repo
+  # COLLECT_START e COLLECT_END (UTC, ex.: 2026-10-20T00:00:00Z). Sem
+  # variavel, esse limite nao se aplica. Runs manuais ignoram o periodo.
+  # Os crons so correm no repo publico, nunca no repo de entrega do grupo.
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.check.outputs.run }}
+    steps:
+      - id: check
+        env:
+          START: ${{ vars.COLLECT_START }}
+          END: ${{ vars.COLLECT_END }}
+          EVENT: ${{ github.event_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          now=$(date -u +%s)
+          run=true
+          if [ "$EVENT" = "schedule" ]; then
+            if [ "$REPO" != "Fegue3/Steam-Analytics" ]; then run=false; fi
+            if [ -n "$START" ] && [ "$now" -lt "$(date -u -d "$START" +%s)" ]; then run=false; fi
+            if [ -n "$END" ] && [ "$now" -ge "$(date -u -d "$END" +%s)" ]; then run=false; fi
+          fi
+          echo "Periodo: ${START:-sem inicio} a ${END:-sem fim}; recolher: $run"
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
   collect:
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

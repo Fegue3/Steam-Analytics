@@ -96,3 +96,10 @@ Os workflows em `.github/workflows/` correm a partir da `main`, fazem checkout
 do código e da branch órfã `data`, e publicam apenas os JSONL e logs na
 branch `data`. O desenvolvimento deve ser feito numa branch normal, como
 `feature/data-collection`; a `data` não deve ser editada manualmente.
+
+O período de recolha dos crons é definido pelas variáveis do repositório
+`COLLECT_START` e `COLLECT_END` (Settings > Secrets and variables > Actions >
+Variables), em UTC no formato `2026-10-20T00:00:00Z`; o início é incluído e o
+fim excluído. Fora desse período os crons terminam sem recolher. Os runs
+manuais (`workflow_dispatch`) ignoram o período, e os crons só recolhem no
+repositório `Fegue3/Steam-Analytics`.
