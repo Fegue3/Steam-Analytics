@@ -9,7 +9,8 @@ Este documento descreve como o projeto está organizado. As pastas e os ficheiro
                                     │
           ┌─────────────────────────┴─────────────────────────┐
 [1] Recolha horária                                  [2] Recolha diária
-    jogadores atuais × 500                               loja (preço, desconto), reviews, SteamSpy
+    jogadores atuais × 500                         reviews exatas + SteamSpy
+    loja (preço, desconto, reviews)
           │                                                    │
           └──────────►  data/raw/…/*.json  +  logs/  ◄─────────┘
                                     │
@@ -37,8 +38,10 @@ Steam-Analytics/
 │   ├── api.py                   clientes HTTP partilhados (cache, retries, rate limit, logging)
 │   ├── classify.py              regras que atribuem uma categoria a cada jogo
 │   ├── select_games.py          seletor → config/games.csv
+│   ├── collect_common.py        utilitários dos coletores e JSONL
 │   ├── collect_players.py       recolha horária de jogadores
-│   ├── collect_daily.py         recolha diária (loja, reviews, SteamSpy)
+│   ├── collect_store.py         recolha horária de loja e reviews resumidas
+│   ├── collect_daily.py         recolha diária de reviews e SteamSpy
 │   ├── build_dataset.py         JSON brutos → CSV tratado
 │   └── data.py                  load_dataset() (exigido pelo enunciado)
 ├── data/
@@ -51,6 +54,12 @@ Steam-Analytics/
 ├── app/                         Streamlit
 └── .github/workflows/           agendamento das recolhas
 ```
+
+Os workflows horários e diários fazem checkout da branch órfã `data` e
+acrescentam os resultados em JSONL, sem alterar a `main`. A branch
+`feature/data-collection` é usada para desenvolver esta funcionalidade e
+depois é integrada na `main` por Pull Request. A branch `data` contém apenas
+o README de identificação, dados brutos e logs gerados pelos workflows.
 
 ## Repositórios
 
