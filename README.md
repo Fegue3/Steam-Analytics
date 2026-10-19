@@ -2,7 +2,7 @@
 
 **Projeto de Ciência de Dados (UBI, MEI 2026/27).** Monitorização da atividade e da popularidade de 500 jogos da Steam: jogadores de hora a hora, preços, descontos e avaliações, em 5 categorias de 100 jogos.
 
-**Estado atual:** só a **seleção dos jogos** está feita. As recolhas, o processamento, o notebook e a app estão planeados. A estrutura do repositório (o que existe e o que falta) está em [`docs/estrutura.md`](docs/estrutura.md).
+**Estado atual:** a seleção dos jogos e a primeira versão da recolha estão implementadas. O processamento, o notebook e a app continuam planeados. A estrutura do repositório está em [`docs/estrutura.md`](docs/estrutura.md).
 
 ## 1. Instalação
 
@@ -74,3 +74,25 @@ Para retirar um jogo, acrescenta-se `appid,reason` a `config/exclusions.csv` e v
 - A amostra é intencional (TOP 100 por jogadores de cada categoria) e não representa o catálogo da Steam.
 
 Fontes: [SteamSpy API](https://steamspy.com/api.php), [Steam Web API — ISteamUserStats](https://partner.steamgames.com/doc/webapi/ISteamUserStats), [IStoreBrowseService](https://steamapi.xpaw.me/#IStoreBrowseService), [ISteamChartsService](https://steamapi.xpaw.me/#ISteamChartsService).
+
+## 5. Recolha automática
+
+Os coletores leem a lista congelada em `config/games.csv` e escrevem uma
+linha JSONL por execução em `data/raw/`, com logs em `data/logs/`:
+
+```bash
+python3 -m src.collect_players --out data --limit 10
+python3 -m src.collect_store --out data --limit 10
+python3 -m src.collect_daily --out data --limit 10
+```
+
+`collect_players` e `collect_store` são horários. `collect_daily` recolhe
+diariamente as contagens exatas de reviews e as estimativas do SteamSpy.
+Os coletores distinguem respostas válidas com zero, respostas sem dados e
+erros persistentes. Não guardam textos, autores ou identificadores de
+utilizadores de reviews.
+
+Os workflows em `.github/workflows/` correm a partir da `main`, fazem checkout
+do código e da branch órfã `data`, e publicam apenas os JSONL e logs na
+branch `data`. O desenvolvimento deve ser feito numa branch normal, como
+`feature/data-collection`; a `data` não deve ser editada manualmente.
