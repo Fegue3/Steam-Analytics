@@ -211,6 +211,10 @@ class SteamStoreClient:
         offer = item.get("best_purchase_option") or {}
         final = int_or_none(offer.get("final_price_in_cents"))
         original = int_or_none(offer.get("original_price_in_cents")) or final
+        reviews = item.get("reviews") or {}
+        review_summary = reviews.get("summary_filtered") or {}
+        discounts = offer.get("active_discounts") or []
+        discount_end = discounts[0].get("discount_end_date") if discounts else None
         if item.get("is_free"):
             status = "gratuito"
         elif final is not None:
@@ -230,16 +234,25 @@ class SteamStoreClient:
             "developer": ", ".join(d["name"] for d in info.get("developers") or [] if d.get("name")),
             "price": "" if final is None else str(final),
             "initialprice": "" if original is None else str(original),
+            "discount_pct": int_or_none(offer.get("discount_pct")) or 0,
+            "discount_end_utc": (datetime.fromtimestamp(int(discount_end), timezone.utc)
+                                 .replace(microsecond=0).isoformat().replace("+00:00", "Z")
+                                 if discount_end else None),
+            "review_count": int_or_none(review_summary.get("review_count")),
+            "review_pct_positive": int_or_none(review_summary.get("percent_positive")),
+            "review_score_label": review_summary.get("review_score_label"),
         }
 
-    def get_games(self, appids: list[int]) -> tuple[dict[int, dict], list[int], list[int]]:
+    def get_games(self, appids: list[int], include_reviews: bool = False
+                  ) -> tuple[dict[int, dict], list[int], list[int]]:
         """Devolve ({appid: jogo}, AppIDs que a loja não reconhece, AppIDs cujo pedido falhou)."""
         found, missing, failed = {}, [], []
         for start in range(0, len(appids), self.batch_size):
             batch = appids[start:start + self.batch_size]
             request = {"ids": [{"appid": a} for a in batch],
                        "context": {"language": "english", "country_code": self.country},
-                       "data_request": {"include_tag_count": 20, "include_basic_info": True}}
+                       "data_request": {"include_tag_count": 20, "include_basic_info": True,
+                                       "include_reviews": include_reviews}}
             try:
                 payload = self.items.get(input_json=json.dumps(request, separators=(",", ":")))
             except RuntimeError as exc:
@@ -292,3 +305,81 @@ class SteamPlayersClient(CachedJsonClient):
             return int(response.get("player_count"))
         except (TypeError, ValueError):
             return None
+
+    def fetch_players(self, appid: int) -> tuple[int | None, str, int | None, str | None]:
+        """Devolve jogadores, estado, HTTP status e mensagem de erro."""
+        response = None
+        for attempt in range(self.max_retries):
+            try:
+                response = self.session.get(self.url, params={"appid": appid}, timeout=self.timeout)
+                status = response.status_code
+                if status == 404:
+                    return None, "no_data", status, None
+                if status in RETRY_STATUS and attempt + 1 < self.max_retries:
+                    pause = self._retry_after(response.headers)
+                    time.sleep(pause if pause is not None else min(90.0, 2 ** (attempt + 1)))
+                    continue
+                if status >= 400:
+                    return None, "error", status, f"HTTP {status}"
+                payload = response.json()
+                result = (payload.get("response") or {}).get("result")
+                if result != 1:
+                    return None, "no_data", status, None
+                try:
+                    players = int((payload.get("response") or {})["player_count"])
+                except (KeyError, TypeError, ValueError) as exc:
+                    return None, "error", status, f"Resposta inválida: {exc}"
+                return players, "ok", status, None
+            except (requests.RequestException, ValueError) as exc:
+                if attempt + 1 == self.max_retries:
+                    return None, "error", getattr(response, "status_code", None), str(exc)
+                time.sleep(min(90.0, 2 ** (attempt + 1)))
+        return None, "error", getattr(response, "status_code", None), "Número de tentativas excedido"
+
+    def fetch_players_many(self, appids: list[int]
+                           ) -> dict[int, tuple[int | None, str, int | None, str | None]]:
+        with ThreadPoolExecutor(max_workers=self.workers) as pool:
+            return dict(zip(appids, pool.map(self.fetch_players, appids)))
+
+
+class SteamReviewsClient:
+    """Cliente sem cache para o resumo público de reviews da loja Steam."""
+
+    url = "https://store.steampowered.com/appreviews"
+
+    def __init__(self, min_interval: float = 1.0, timeout: int = 45, max_retries: int = 3):
+        self.min_interval = min_interval
+        self.timeout = timeout
+        self.max_retries = max_retries
+        self.session = requests.Session()
+        self.session.headers.update({"User-Agent": USER_AGENT})
+        self.last_request_at = 0.0
+
+    def fetch(self, appid: int) -> tuple[dict | None, str, int | None, str | None]:
+        response = None
+        for attempt in range(self.max_retries):
+            wait = self.min_interval - (time.monotonic() - self.last_request_at)
+            if wait > 0:
+                time.sleep(wait)
+            self.last_request_at = time.monotonic()
+            try:
+                response = self.session.get(
+                    f"{self.url}/{appid}", params={"json": 1, "language": "all",
+                    "purchase_type": "all", "num_per_page": 0, "filter": "all"},
+                    timeout=self.timeout)
+                if response.status_code == 404:
+                    return None, "no_data", 404, None
+                if response.status_code in RETRY_STATUS and attempt + 1 < self.max_retries:
+                    pause = CachedJsonClient._retry_after(response.headers)
+                    time.sleep(pause if pause is not None else min(90.0, 2 ** (attempt + 1)))
+                    continue
+                response.raise_for_status()
+                payload = response.json()
+                if payload.get("success") != 1:
+                    return payload, "no_data", response.status_code, None
+                return payload, "ok", response.status_code, None
+            except (requests.RequestException, ValueError) as exc:
+                if attempt + 1 == self.max_retries:
+                    return None, "error", getattr(response, "status_code", None), str(exc)
+                time.sleep(min(90.0, 2 ** (attempt + 1)))
+        return None, "error", None, "Número de tentativas excedido"

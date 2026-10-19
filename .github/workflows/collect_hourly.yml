@@ -1,0 +1,45 @@
+name: Recolha horaria
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: data-branch
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: data
+          path: store
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: python -m src.collect_players --out store
+      - run: python -m src.collect_store --out store
+        if: always()
+      - name: Commit e push para o branch data
+        if: always()
+        working-directory: store
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add raw logs
+          git diff --cached --quiet && exit 0
+          git commit -m "Recolha horaria $(date -u +%Y-%m-%dT%H:%MZ)"
+          for i in 1 2 3 4 5; do
+            git pull --rebase origin data && git push origin data && exit 0
+            sleep $((i * 10))
+          done
+          exit 1

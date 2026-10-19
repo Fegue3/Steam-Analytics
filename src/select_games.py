@@ -270,10 +270,12 @@ def main(argv: list[str] | None = None) -> int:
         for error in errors:
             LOGGER.error(error)
         LOGGER.error("Seleção inválida: %s não foi alterado", args.output)
+        logging.shutdown()
         return 2
     when = datetime.now(timezone.utc).isoformat(timespec="seconds")
     write_games(args.output, chosen, names, when)
     LOGGER.info("Lista gravada: %s (%d jogos, %s)", args.output, sum(map(len, chosen.values())), when)
+    logging.shutdown()
     return 0
 
 
