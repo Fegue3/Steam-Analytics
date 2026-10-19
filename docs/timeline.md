@@ -51,3 +51,23 @@ Correção dos problemas da primeira versão:
 - **Execução reduzida a ~1,5 min**, com pedidos em lote à loja Steam (200 jogos por pedido).
 - **Validação antes de gravar:** a lista só é escrita se estiver completa e sem fontes falhadas.
 
+
+## 6. Recolha automática de dados
+
+**Responsável:** Daniel
+**Commits:** `082ceda`, `1e1d253`, `3608ad3`, `b74f917` (PR #1), `ec45408`, `a9d5bcd` (19/10/2026)
+
+Implementação dos coletores e da sua execução automática com GitHub Actions:
+
+- **Branch `data`:** branch órfã criada só para os dados brutos (`raw/`) e os logs (`logs/`), um ficheiro JSONL por fonte e por dia. É escrita apenas pelos GitHub Actions; o código fica na `main`.
+- **Recolha horária** (`collect_players`, `collect_store`): jogadores atuais de cada jogo (`GetNumberOfCurrentPlayers`) e dados da loja Steam (preço, desconto, contagem e percentagem de reviews), com pedidos em lote de 200 jogos.
+- **Recolha diária** (`collect_daily`): contagens exatas de reviews (`appreviews`) e estimativas do SteamSpy (proprietários, jogadores, preço).
+- **Validação dos coletores:** cada jogo fica marcado como `ok`, `no_data` ou `error`, e cada execução regista contagens, hora UTC e o identificador do run. As fontes são independentes: a falha de uma não impede a recolha das outras. Não são guardados textos, autores ou identificadores de utilizadores das reviews.
+- **Workflows:** os dois workflows partilham um grupo de `concurrency`, para nunca escreverem na `data` ao mesmo tempo, e fazem commit e push com retentativas.
+- **Teste:** execução manual a 19/10/2026 com os 500 jogos recolhidos em todas as fontes, sem erros. Os dados deste teste foram removidos da `data` antes do início da recolha.
+
+### Horário e período de recolha
+
+- **Horário:** a recolha horária corre ao minuto 17 de cada hora; a diária corre às 05:40 UTC, com uma execução de reserva às 18:40 UTC que só recolhe as fontes que ainda não tenham uma recolha completa nesse dia, para não haver dados duplicados.
+- **Período de recolha:** definido pelas variáveis do repositório `COLLECT_START` e `COLLECT_END` (UTC). Fora desse período, os crons terminam sem recolher; as execuções manuais ignoram o período. Os crons só recolhem no repositório `Fegue3/Steam-Analytics`.
+- **Primeiro período:** teste de 48 horas, de 20/10/2026 00:00 UTC a 22/10/2026 00:00 UTC.
