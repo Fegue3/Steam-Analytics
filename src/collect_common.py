@@ -80,6 +80,13 @@ def setup_collection_logging(root: Path, source: str, when: datetime | None = No
     return logger
 
 
+def close_collection_logging(logger: logging.Logger) -> None:
+    for handler in logger.handlers[:]:
+        handler.flush()
+        handler.close()
+        logger.removeHandler(handler)
+
+
 def collection_record(source: str, endpoint: str, games_list_date: str,
                       started: datetime, finished: datetime, games: list[dict],
                       **extra: object) -> dict:

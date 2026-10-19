@@ -5,8 +5,8 @@ import argparse
 from pathlib import Path
 
 from src.api import SteamReviewsClient, SteamSpyClient
-from src.collect_common import (append_jsonl, collection_record, day_path, load_games,
-                                setup_collection_logging, utc_now)
+from src.collect_common import (append_jsonl, close_collection_logging, collection_record,
+                                day_path, load_games, setup_collection_logging, utc_now)
 
 
 def collect_reviews(games: list[dict], out: Path) -> dict:
@@ -58,10 +58,29 @@ def collect_steamspy(games: list[dict], out: Path, cache: Path | None = None) ->
 def collect(games: list[dict], out: Path, cache: Path | None = None) -> tuple[dict, dict]:
     logger = setup_collection_logging(out, "daily")
     logger.info("Início: %d jogos", len(games))
-    reviews = collect_reviews(games, out)
-    steamspy = collect_steamspy(games, out, cache)
+    try:
+        reviews = collect_reviews(games, out)
+    except (OSError, RuntimeError, ValueError) as exc:
+        logger.exception("Recolha de reviews falhou; a recolha SteamSpy continua")
+        reviews = collection_record(
+            "steam_reviews", "https://store.steampowered.com/appreviews/<appid>",
+            games[0]["selection_date_utc"], utc_now(), utc_now(),
+            [{"appid": game["appid"], "status": "error", "http_status": None,
+              "error": str(exc)} for game in games])
+        append_jsonl(day_path(out, "reviews"), reviews)
+    try:
+        steamspy = collect_steamspy(games, out, cache)
+    except (OSError, RuntimeError, ValueError) as exc:
+        logger.exception("Recolha SteamSpy falhou; a recolha de reviews já foi preservada")
+        steamspy = collection_record(
+            "steamspy", "https://steamspy.com/api.php?request=appdetails&appid=<appid>",
+            games[0]["selection_date_utc"], utc_now(), utc_now(),
+            [{"appid": game["appid"], "status": "error", "http_status": None,
+              "error": str(exc)} for game in games])
+        append_jsonl(day_path(out, "steamspy"), steamspy)
     logger.info("Fim: reviews %d ok/%d erros; SteamSpy %d ok/%d erros",
                 reviews["n_ok"], reviews["n_error"], steamspy["n_ok"], steamspy["n_error"])
+    close_collection_logging(logger)
     return reviews, steamspy
 
 
