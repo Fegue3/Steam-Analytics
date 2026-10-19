@@ -5,8 +5,8 @@ import argparse
 from pathlib import Path
 
 from src.api import STEAM_ITEMS_URL, SteamStoreClient
-from src.collect_common import (append_jsonl, collection_record, day_path, load_games,
-                                setup_collection_logging, utc_now)
+from src.collect_common import (append_jsonl, close_collection_logging, collection_record,
+                                day_path, load_games, setup_collection_logging, utc_now)
 
 
 def collect(games: list[dict], out: Path, cache: Path | None = None) -> dict:
@@ -39,6 +39,7 @@ def collect(games: list[dict], out: Path, cache: Path | None = None) -> dict:
     logger.info("Início: %d jogos em lotes de 200", len(games))
     logger.info("Fim: %d ok, %d sem dados, %d erros", output["n_ok"],
                 output["n_no_data"], output["n_error"])
+    close_collection_logging(logger)
     return output
 
 
