@@ -1,10 +1,10 @@
 name: Recolha diaria
 
 on:
-  # O cron do GitHub atrasa ou salta execucoes, por isso ha tres tentativas
-  # por dia. Cada uma so recolhe as fontes sem recolha completa nesse dia.
-  # Opcionalmente, o cron-job.org pode disparar o workflow (workflow_dispatch
-  # com scheduled=true), ver docs/agendamento.md.
+  # O cron do GitHub atrasa ou salta execucoes. O disparo principal e o
+  # cron-job.org (workflow_dispatch com scheduled=true, ver docs/agendamento.md);
+  # estes crons ficam como reserva, com tres tentativas por dia. Cada execucao
+  # so recolhe as fontes sem recolha completa nesse dia.
   schedule:
     - cron: "40 5 * * *"
     - cron: "40 12 * * *"

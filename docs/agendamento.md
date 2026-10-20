@@ -1,12 +1,25 @@
 # Agendamento da recolha
 
 O `schedule` do GitHub Actions funciona em regime de "melhor esforço": as
-execuções podem atrasar horas ou nem chegar a correr. No primeiro teste
-(20/10/2026) as recolhas das 01:17 e 02:17 UTC nunca foram lançadas e a diária
-das 18:40 UTC arrancou às 22:37 UTC.
+execuções podem atrasar horas ou nem chegar a correr. Por isso os workflows
+são disparados pelo [cron-job.org](https://cron-job.org), que chama a API do
+GitHub à hora exata (ver abaixo). Os crons do GitHub ficam ativos como reserva.
 
-Por isso há várias tentativas por hora e por dia, e só a primeira que chega
-recolhe:
+## Histórico
+
+- **19/10/2026:** um cron por hora. As recolhas das 01:17 e 02:17 UTC de 20/10
+  nunca foram lançadas e a diária das 18:40 UTC arrancou às 22:37 UTC.
+- **20/10/2026:** cinco crons por hora e três por dia. Mesmo assim, o GitHub
+  não lançou nenhum run em 12 das 20 horas entre as 00h e as 19h UTC (01, 02,
+  04 a 07, 10 a 13, 16 e 17) e as diárias das 05:40 e 12:40 UTC arrancaram às
+  10:23 e 17:31 UTC. Mais crons do GitHub não resolvem o problema.
+- **20/10/2026, 20:30 UTC:** o disparo passou a ser feito pelo cron-job.org. Os
+  dados de 20/10, incompletos, foram removidos da branch `data` e o teste de 48
+  horas foi reiniciado para 21/10/2026 00:00 UTC a 23/10/2026 00:00 UTC.
+
+## Crons do GitHub (reserva)
+
+Há várias tentativas por hora e por dia, e só a primeira que chega recolhe:
 
 | Workflow | Crons do GitHub (UTC) |
 |---|---|
@@ -21,12 +34,14 @@ consoante a tentativa que corre primeiro, mas fica sempre registada em
 variáveis `COLLECT_START` e `COLLECT_END`, que se aplicam a todos os runs
 agendados.
 
-## Opcional: disparo pelo cron-job.org
+## Disparo pelo cron-job.org
 
-Para garantir o disparo à hora exata, o [cron-job.org](https://cron-job.org)
-pode chamar a API do GitHub (`workflow_dispatch` com `scheduled=true`). Este
-disparo aplica o período de recolha e a mesma regra contra duplicados. Não é
-necessário: os crons do GitHub continuam ativos de qualquer forma.
+O cron-job.org chama a API do GitHub (`workflow_dispatch` com `scheduled=true`)
+ao minuto 17 de cada hora (recolha horária) e às 05:40 UTC (recolha diária).
+Este disparo aplica o período de recolha e a mesma regra contra duplicados, por
+isso pode coincidir com os crons do GitHub sem duplicar dados.
+
+Configuração (já feita; os passos ficam para referência ou para refazer):
 
 ## 1. Criar o token do GitHub
 

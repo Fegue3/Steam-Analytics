@@ -1,10 +1,10 @@
 name: Recolha horaria
 
 on:
-  # O cron do GitHub atrasa ou salta execucoes, por isso ha cinco tentativas
-  # por hora. So a primeira recolhe; as seguintes veem que a hora ja tem
-  # dados e terminam sem recolher. Opcionalmente, o cron-job.org pode disparar
-  # o workflow (workflow_dispatch com scheduled=true), ver docs/agendamento.md.
+  # O cron do GitHub atrasa ou salta execucoes. O disparo principal e o
+  # cron-job.org (workflow_dispatch com scheduled=true, ver docs/agendamento.md);
+  # estes crons ficam como reserva, com cinco tentativas por hora. So a primeira
+  # execucao recolhe; as seguintes veem que a hora ja tem dados e terminam.
   schedule:
     - cron: "7 * * * *"
     - cron: "17 * * * *"
