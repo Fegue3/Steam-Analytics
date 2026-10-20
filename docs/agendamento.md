@@ -1,25 +1,32 @@
-# Agendamento da recolha com o cron-job.org
+# Agendamento da recolha
 
 O `schedule` do GitHub Actions funciona em regime de "melhor esforço": as
 execuções podem atrasar horas ou nem chegar a correr. No primeiro teste
 (20/10/2026) as recolhas das 01:17 e 02:17 UTC nunca foram lançadas e a diária
 das 18:40 UTC arrancou às 22:37 UTC.
 
-Por isso, o disparo principal é feito pelo [cron-job.org](https://cron-job.org),
-que chama a API do GitHub (`workflow_dispatch`) à hora exata. O código continua
-a correr no GitHub Actions e os dados continuam a ir para a branch `data`. Os
-crons do GitHub ficam como reserva:
+Por isso há várias tentativas por hora e por dia, e só a primeira que chega
+recolhe:
 
-| Workflow | Disparo principal (cron-job.org) | Reserva (cron do GitHub) |
-|---|---|---|
-| `collect_hourly.yml` | minuto 17 de cada hora | minuto 47 de cada hora |
-| `collect_daily.yml` | 05:40 UTC | 08:40 e 18:40 UTC |
+| Workflow | Crons do GitHub (UTC) |
+|---|---|
+| `collect_hourly.yml` | minutos 7, 17, 29, 41 e 53 de cada hora |
+| `collect_daily.yml` | 05:40, 12:40 e 18:40 |
 
 Não há dados duplicados: a recolha horária não recolhe se já existir uma
 recolha com dados nessa hora UTC (`collected_this_hour`), e a diária só recolhe
-as fontes sem recolha completa nesse dia. O período de recolha continua a ser
-definido pelas variáveis `COLLECT_START` e `COLLECT_END`, que se aplicam a
-todos os runs agendados (cron do GitHub ou cron-job.org com `scheduled=true`).
+as fontes sem recolha completa nesse dia. A hora exata de cada recolha varia
+consoante a tentativa que corre primeiro, mas fica sempre registada em
+`collected_at_utc` e `hour_utc`. O período de recolha é definido pelas
+variáveis `COLLECT_START` e `COLLECT_END`, que se aplicam a todos os runs
+agendados.
+
+## Opcional: disparo pelo cron-job.org
+
+Para garantir o disparo à hora exata, o [cron-job.org](https://cron-job.org)
+pode chamar a API do GitHub (`workflow_dispatch` com `scheduled=true`). Este
+disparo aplica o período de recolha e a mesma regra contra duplicados. Não é
+necessário: os crons do GitHub continuam ativos de qualquer forma.
 
 ## 1. Criar o token do GitHub
 

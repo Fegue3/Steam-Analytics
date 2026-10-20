@@ -1,11 +1,13 @@
 name: Recolha diaria
 
 on:
-  # O disparo principal e o cron-job.org as 05:40 UTC (workflow_dispatch com
-  # scheduled=true), porque o cron do GitHub atrasa ou salta execucoes. Os
-  # crons abaixo sao reserva: so recolhem as fontes sem recolha completa hoje.
+  # O cron do GitHub atrasa ou salta execucoes, por isso ha tres tentativas
+  # por dia. Cada uma so recolhe as fontes sem recolha completa nesse dia.
+  # Opcionalmente, o cron-job.org pode disparar o workflow (workflow_dispatch
+  # com scheduled=true), ver docs/agendamento.md.
   schedule:
-    - cron: "40 8 * * *"
+    - cron: "40 5 * * *"
+    - cron: "40 12 * * *"
     - cron: "40 18 * * *"
   workflow_dispatch:
     inputs:

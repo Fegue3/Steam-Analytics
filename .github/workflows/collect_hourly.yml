@@ -1,11 +1,16 @@
 name: Recolha horaria
 
 on:
-  # O disparo principal e o cron-job.org ao minuto 17 (workflow_dispatch com
-  # scheduled=true), porque o cron do GitHub atrasa ou salta execucoes. O cron
-  # abaixo e apenas reserva: se a hora ja tiver sido recolhida, nao recolhe.
+  # O cron do GitHub atrasa ou salta execucoes, por isso ha cinco tentativas
+  # por hora. So a primeira recolhe; as seguintes veem que a hora ja tem
+  # dados e terminam sem recolher. Opcionalmente, o cron-job.org pode disparar
+  # o workflow (workflow_dispatch com scheduled=true), ver docs/agendamento.md.
   schedule:
-    - cron: "47 * * * *"
+    - cron: "7 * * * *"
+    - cron: "17 * * * *"
+    - cron: "29 * * * *"
+    - cron: "41 * * * *"
+    - cron: "53 * * * *"
   workflow_dispatch:
     inputs:
       scheduled:

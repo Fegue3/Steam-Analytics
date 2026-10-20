@@ -104,6 +104,6 @@ fim excluído. Fora desse período os runs agendados terminam sem recolher. Os
 runs manuais (`workflow_dispatch` sem `scheduled`) ignoram o período, e os runs
 agendados só recolhem no repositório `Fegue3/Steam-Analytics`.
 
-O disparo principal é feito pelo cron-job.org, porque o cron do GitHub atrasa
-ou salta execuções; os crons do GitHub ficam como reserva, sem duplicar
-recolhas. A configuração está em [`docs/agendamento.md`](docs/agendamento.md).
+Como o cron do GitHub atrasa ou salta execuções, há cinco tentativas por hora
+e três por dia; só a primeira recolhe, as restantes terminam sem duplicar
+dados. Ver [`docs/agendamento.md`](docs/agendamento.md).
