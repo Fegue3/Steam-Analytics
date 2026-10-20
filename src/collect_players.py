@@ -6,8 +6,9 @@ from datetime import datetime
 from pathlib import Path
 
 from src.api import STEAM_PLAYERS_URL, SteamPlayersClient
-from src.collect_common import (append_jsonl, close_collection_logging, collection_record,
-                                day_path, load_games, setup_collection_logging, utc_now)
+from src.collect_common import (append_jsonl, close_collection_logging, collected_this_hour,
+                                collection_record, day_path, load_games,
+                                setup_collection_logging, utc_now)
 
 
 def collect(games: list[dict], out: Path, cache: Path | None = None) -> dict:
@@ -39,6 +40,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--out", type=Path, default=Path("data"))
     parser.add_argument("--cache", type=Path)
     parser.add_argument("--limit", type=int)
+    parser.add_argument("--force", action="store_true",
+                        help="Recolhe mesmo que já exista uma recolha desta hora")
     args = parser.parse_args(argv)
     if args.limit is not None and args.limit < 1:
         parser.error("--limit tem de ser >= 1")
@@ -47,6 +50,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+    if not args.force and collected_this_hour(args.out, "players"):
+        print("Recolha desta hora já existe; a saltar")
+        return 0
     games = load_games(args.games)
     collect(games[:args.limit] if args.limit else games, args.out, args.cache)
     return 0

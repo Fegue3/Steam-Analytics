@@ -36,6 +36,23 @@ def append_jsonl(path: Path, record: dict) -> None:
         stream.flush()
 
 
+def collected_this_hour(root: Path, source: str, when: datetime | None = None) -> bool:
+    """Indica se já existe uma recolha desta fonte, com dados, na hora UTC atual."""
+    when = when or utc_now()
+    path = day_path(root, source, when)
+    if not path.exists():
+        return False
+    hour = iso_utc(hour_start(when))
+    for line in reversed(path.read_text(encoding="utf-8").splitlines()):
+        try:
+            record = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if record.get("hour_utc") == hour and record.get("n_ok", 0) > 0:
+            return True
+    return False
+
+
 def load_games(path: Path) -> list[dict]:
     if not path.exists():
         raise FileNotFoundError(f"Lista de jogos inexistente: {path}")

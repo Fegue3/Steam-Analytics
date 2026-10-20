@@ -6,7 +6,8 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from src.api import SteamPlayersClient, SteamStoreClient
-from src.collect_common import append_jsonl, collection_record, day_path, load_games
+from src.collect_common import (append_jsonl, collected_this_hour, collection_record, day_path,
+                                load_games)
 from src.collect_daily import collect
 
 
@@ -157,6 +158,17 @@ class CollectionUtilityTest(unittest.TestCase):
                     patch("src.collect_daily.collect_steamspy", return_value=ok):
                 collect(games, Path(tmp), force=True)
             reviews_call.assert_called_once()
+
+    def test_collected_this_hour_only_matches_same_hour_with_data(self):
+        now = datetime(2026, 10, 20, 14, 40, tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertFalse(collected_this_hour(Path(tmp), "players", now))
+            path = day_path(Path(tmp), "players", now)
+            append_jsonl(path, {"hour_utc": "2026-10-20T13:00:00Z", "n_ok": 500})
+            append_jsonl(path, {"hour_utc": "2026-10-20T14:00:00Z", "n_ok": 0})
+            self.assertFalse(collected_this_hour(Path(tmp), "players", now))
+            append_jsonl(path, {"hour_utc": "2026-10-20T14:00:00Z", "n_ok": 500})
+            self.assertTrue(collected_this_hour(Path(tmp), "players", now))
 
 
 if __name__ == "__main__":

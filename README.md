@@ -100,6 +100,10 @@ branch `data`. O desenvolvimento deve ser feito numa branch normal, como
 O período de recolha dos crons é definido pelas variáveis do repositório
 `COLLECT_START` e `COLLECT_END` (Settings > Secrets and variables > Actions >
 Variables), em UTC no formato `2026-10-20T00:00:00Z`; o início é incluído e o
-fim excluído. Fora desse período os crons terminam sem recolher. Os runs
-manuais (`workflow_dispatch`) ignoram o período, e os crons só recolhem no
-repositório `Fegue3/Steam-Analytics`.
+fim excluído. Fora desse período os runs agendados terminam sem recolher. Os
+runs manuais (`workflow_dispatch` sem `scheduled`) ignoram o período, e os runs
+agendados só recolhem no repositório `Fegue3/Steam-Analytics`.
+
+O disparo principal é feito pelo cron-job.org, porque o cron do GitHub atrasa
+ou salta execuções; os crons do GitHub ficam como reserva, sem duplicar
+recolhas. A configuração está em [`docs/agendamento.md`](docs/agendamento.md).
