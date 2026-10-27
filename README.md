@@ -10,7 +10,7 @@ Steam Analytics.
 raw/
 ├── players/AAAA-MM-DD.jsonl
 ├── store/AAAA-MM-DD.jsonl
-├── reviews/AAAA-MM-DD.jsonl
+├── metadata/AAAA-MM-DD.jsonl
 └── steamspy/AAAA-MM-DD.jsonl
 
 logs/
