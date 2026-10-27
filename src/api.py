@@ -202,8 +202,11 @@ class SteamStoreClient:
             self._tag_names = {int(t["tagid"]): t["name"] for t in tags}
         return self._tag_names
 
-    def to_game(self, item: dict) -> dict:
-        """Converte um item da loja para o formato usado em src/classify.py."""
+    def to_game(self, item: dict, details: bool = False) -> dict:
+        """Converte um item da loja para o formato usado em src/classify.py.
+
+        Com `details`, junta a ficha do jogo (descrição, lançamento, plataformas, línguas).
+        """
         names = self.tag_names()
         tags = {names.get(int(t["tagid"]), str(t["tagid"])): int(t.get("weight", 0))
                 for t in item.get("tags") or []}
@@ -221,7 +224,7 @@ class SteamStoreClient:
             status = "a_venda"
         else:
             status = "nao_listado" if item.get("unlisted") else "sem_venda"  # p.ex. acesso por convite
-        return {
+        game = {
             "name": item.get("name", ""),
             "store_type": item.get("type"),
             "is_free": bool(item.get("is_free")),
@@ -242,8 +245,34 @@ class SteamStoreClient:
             "review_pct_positive": int_or_none(review_summary.get("percent_positive")),
             "review_score_label": review_summary.get("review_score_label"),
         }
+        if details:
+            game.update(self.details(item))
+        return game
 
-    def get_games(self, appids: list[int], include_reviews: bool = False
+    @staticmethod
+    def details(item: dict) -> dict:
+        categories = item.get("categories") or {}
+        released = (item.get("release") or {}).get("steam_release_date")
+        platforms = item.get("platforms") or {}
+        languages = [lang for lang in item.get("supported_languages") or [] if lang.get("supported")]
+        return {
+            "short_description": (item.get("basic_info") or {}).get("short_description"),
+            "release_date_utc": (datetime.fromtimestamp(int(released), timezone.utc)
+                                 .date().isoformat() if released else None),
+            # IDs de categoria da loja: 22 conquistas, 28/18 comando, 62 família, ...
+            "feature_categories": sorted(categories.get("feature_categoryids") or []),
+            "controller_categories": sorted(categories.get("controller_categoryids") or []),
+            "windows": bool(platforms.get("windows")),
+            "mac": bool(platforms.get("mac")),
+            "linux": bool(platforms.get("steamos_linux")),
+            # 0 desconhecido, 1 não suportado, 2 jogável, 3 verificado
+            "steam_deck_compat": platforms.get("steam_deck_compat_category"),
+            "n_languages": len(languages),
+            "n_languages_full_audio": sum(1 for lang in languages if lang.get("full_audio")),
+        }
+
+    def get_games(self, appids: list[int], include_reviews: bool = False,
+                  include_details: bool = False
                   ) -> tuple[dict[int, dict], list[int], list[int]]:
         """Devolve ({appid: jogo}, AppIDs que a loja não reconhece, AppIDs cujo pedido falhou)."""
         found, missing, failed = {}, [], []
@@ -252,7 +281,10 @@ class SteamStoreClient:
             request = {"ids": [{"appid": a} for a in batch],
                        "context": {"language": "english", "country_code": self.country},
                        "data_request": {"include_tag_count": 20, "include_basic_info": True,
-                                       "include_reviews": include_reviews}}
+                                       "include_reviews": include_reviews,
+                                       "include_release": include_details,
+                                       "include_platforms": include_details,
+                                       "include_supported_languages": include_details}}
             try:
                 payload = self.items.get(input_json=json.dumps(request, separators=(",", ":")))
             except RuntimeError as exc:
@@ -264,7 +296,7 @@ class SteamStoreClient:
             for appid in batch:
                 item = items.get(appid)
                 if item and item.get("success") == 1:
-                    found[appid] = self.to_game(item)
+                    found[appid] = self.to_game(item, include_details)
                 else:
                     missing.append(appid)
         return found, missing, failed
@@ -340,46 +372,3 @@ class SteamPlayersClient(CachedJsonClient):
                            ) -> dict[int, tuple[int | None, str, int | None, str | None]]:
         with ThreadPoolExecutor(max_workers=self.workers) as pool:
             return dict(zip(appids, pool.map(self.fetch_players, appids)))
-
-
-class SteamReviewsClient:
-    """Cliente sem cache para o resumo público de reviews da loja Steam."""
-
-    url = "https://store.steampowered.com/appreviews"
-
-    def __init__(self, min_interval: float = 1.0, timeout: int = 45, max_retries: int = 3):
-        self.min_interval = min_interval
-        self.timeout = timeout
-        self.max_retries = max_retries
-        self.session = requests.Session()
-        self.session.headers.update({"User-Agent": USER_AGENT})
-        self.last_request_at = 0.0
-
-    def fetch(self, appid: int) -> tuple[dict | None, str, int | None, str | None]:
-        response = None
-        for attempt in range(self.max_retries):
-            wait = self.min_interval - (time.monotonic() - self.last_request_at)
-            if wait > 0:
-                time.sleep(wait)
-            self.last_request_at = time.monotonic()
-            try:
-                response = self.session.get(
-                    f"{self.url}/{appid}", params={"json": 1, "language": "all",
-                    "purchase_type": "all", "num_per_page": 0, "filter": "all"},
-                    timeout=self.timeout)
-                if response.status_code == 404:
-                    return None, "no_data", 404, None
-                if response.status_code in RETRY_STATUS and attempt + 1 < self.max_retries:
-                    pause = CachedJsonClient._retry_after(response.headers)
-                    time.sleep(pause if pause is not None else min(90.0, 2 ** (attempt + 1)))
-                    continue
-                response.raise_for_status()
-                payload = response.json()
-                if payload.get("success") != 1:
-                    return payload, "no_data", response.status_code, None
-                return payload, "ok", response.status_code, None
-            except (requests.RequestException, ValueError) as exc:
-                if attempt + 1 == self.max_retries:
-                    return None, "error", getattr(response, "status_code", None), str(exc)
-                time.sleep(min(90.0, 2 ** (attempt + 1)))
-        return None, "error", None, "Número de tentativas excedido"

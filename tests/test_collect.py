@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 from src.api import SteamPlayersClient, SteamStoreClient
 from src.collect_common import (append_jsonl, collected_this_hour, collection_record, day_path,
                                 load_games)
-from src.collect_daily import collect
+from src.collect_daily import MAX_CONSECUTIVE_ERRORS, collect, collect_source
 
 
 class CollectionApiTest(unittest.TestCase):
@@ -125,39 +125,70 @@ class CollectionUtilityTest(unittest.TestCase):
                           record["n_error"]), (3, 1, 1, 1))
         self.assertEqual(record["games_list_date"], "2026-10-18T18:52:31+00:00")
 
-    def test_daily_sources_are_independent(self):
+    def test_daily_steamspy_failure_is_recorded_as_errors(self):
         games = [{"appid": 1, "selection_date_utc": "2026-10-18T18:52:31+00:00"}]
         with tempfile.TemporaryDirectory() as tmp:
-            with patch("src.collect_daily.collect_reviews", side_effect=RuntimeError("reviews")), \
-                    patch("src.collect_daily.collect_steamspy",
-                          return_value={"n_ok": 1, "n_error": 0}), \
+            with patch("src.collect_daily.collect_metadata", return_value={"n_ok": 1, "n_error": 0}), \
+                    patch("src.collect_daily.collect_steamspy", side_effect=RuntimeError("spy")), \
                     patch("src.collect_daily.append_jsonl"):
-                reviews, steamspy = collect(games, Path(tmp))
-            self.assertEqual(reviews["n_error"], 1)
+                metadata, steamspy = collect(games, Path(tmp))
+            self.assertEqual(metadata["n_ok"], 1)
+            self.assertEqual(steamspy["n_error"], 1)
+
+    def test_daily_skips_when_already_collected_today(self):
+        games = [{"appid": 1, "selection_date_utc": "2026-10-18T18:52:31+00:00"}]
+        with tempfile.TemporaryDirectory() as tmp:
+            append_jsonl(day_path(Path(tmp), "steamspy"), {"n_ok": 1, "n_error": 0})
+            append_jsonl(day_path(Path(tmp), "metadata"), {"n_ok": 1, "n_error": 0})
+            with patch("src.collect_daily.collect_metadata") as metadata_call, \
+                    patch("src.collect_daily.collect_steamspy") as steamspy_call:
+                _, steamspy = collect(games, Path(tmp))
+            metadata_call.assert_not_called()
+            steamspy_call.assert_not_called()
             self.assertEqual(steamspy["n_ok"], 1)
 
-    def test_daily_skips_sources_already_collected_today(self):
+    def test_daily_collects_again_after_errors_or_with_force(self):
         games = [{"appid": 1, "selection_date_utc": "2026-10-18T18:52:31+00:00"}]
+        ok = {"n_ok": 1, "n_error": 0}
         with tempfile.TemporaryDirectory() as tmp:
-            append_jsonl(day_path(Path(tmp), "reviews"), {"n_ok": 1, "n_error": 0})
             append_jsonl(day_path(Path(tmp), "steamspy"), {"n_ok": 0, "n_error": 1})
-            with patch("src.collect_daily.collect_reviews") as reviews_call, \
-                    patch("src.collect_daily.collect_steamspy",
-                          return_value={"n_ok": 1, "n_error": 0}) as steamspy_call:
-                reviews, _ = collect(games, Path(tmp))
-            reviews_call.assert_not_called()
+            with patch("src.collect_daily.collect_metadata", return_value=ok), \
+                    patch("src.collect_daily.collect_steamspy", return_value=ok) as steamspy_call:
+                collect(games, Path(tmp))
             steamspy_call.assert_called_once()
-            self.assertEqual(reviews["n_ok"], 1)
-
-    def test_daily_force_collects_again(self):
-        games = [{"appid": 1, "selection_date_utc": "2026-10-18T18:52:31+00:00"}]
-        with tempfile.TemporaryDirectory() as tmp:
-            append_jsonl(day_path(Path(tmp), "reviews"), {"n_ok": 1, "n_error": 0})
-            ok = {"n_ok": 1, "n_error": 0}
-            with patch("src.collect_daily.collect_reviews", return_value=ok) as reviews_call, \
-                    patch("src.collect_daily.collect_steamspy", return_value=ok):
+            with patch("src.collect_daily.collect_metadata", return_value=ok), \
+                    patch("src.collect_daily.collect_steamspy", return_value=ok) as steamspy_call:
                 collect(games, Path(tmp), force=True)
-            reviews_call.assert_called_once()
+            steamspy_call.assert_called_once()
+
+    def test_daily_source_always_requests_all_games(self):
+        games = [{"appid": a, "selection_date_utc": "x"} for a in (1, 2, 3)]
+        with tempfile.TemporaryDirectory() as tmp:
+            append_jsonl(day_path(Path(tmp), "steamspy"), {"games": [
+                {"appid": 1, "status": "ok"}, {"appid": 2, "status": "error"}]})
+            fetch = MagicMock(side_effect=lambda appid: {"appid": appid, "status": "ok"})
+            result = collect_source(games, Path(tmp), "steamspy", "steamspy", "e", fetch)
+        self.assertEqual(fetch.call_count, 3)
+        self.assertEqual((result["n_ok"], result["n_error"]), (3, 0))
+
+    def test_daily_source_stops_after_consecutive_errors(self):
+        games = [{"appid": a, "selection_date_utc": "x"} for a in range(100)]
+        with tempfile.TemporaryDirectory() as tmp:
+            fetch = MagicMock(side_effect=lambda appid: {"appid": appid, "status": "error"})
+            result = collect_source(games, Path(tmp), "steamspy", "steamspy", "e", fetch)
+        self.assertEqual(fetch.call_count, MAX_CONSECUTIVE_ERRORS)
+        self.assertEqual((result["n_error"], result["n_games"]), (100, 100))
+        self.assertIn("erros seguidos", result["games"][-1]["error"])
+
+    def test_daily_source_stops_at_deadline_and_saves_progress(self):
+        games = [{"appid": a, "selection_date_utc": "x"} for a in (1, 2)]
+        with tempfile.TemporaryDirectory() as tmp:
+            fetch = MagicMock()
+            past = datetime(2000, 1, 1, tzinfo=timezone.utc)
+            result = collect_source(games, Path(tmp), "steamspy", "steamspy", "e", fetch, past)
+            self.assertTrue(day_path(Path(tmp), "steamspy").exists())
+        fetch.assert_not_called()
+        self.assertIn("limite de tempo", result["games"][0]["error"])
 
     def test_collected_this_hour_only_matches_same_hour_with_data(self):
         now = datetime(2026, 10, 20, 14, 40, tzinfo=timezone.utc)

@@ -86,11 +86,14 @@ python3 -m src.collect_store --out data --limit 10
 python3 -m src.collect_daily --out data --limit 10
 ```
 
-`collect_players` e `collect_store` são horários. `collect_daily` recolhe
-diariamente as contagens exatas de reviews e as estimativas do SteamSpy.
-Os coletores distinguem respostas válidas com zero, respostas sem dados e
-erros persistentes. Não guardam textos, autores ou identificadores de
-utilizadores de reviews.
+`collect_players` e `collect_store` são horários; `collect_store` guarda também
+o número de reviews e a percentagem positiva que a Steam mostra.
+`collect_daily` recolhe diariamente a ficha de cada jogo na loja (nome,
+publisher, developer, tags, lançamento, plataformas, línguas) e as
+estimativas do SteamSpy. Os coletores
+distinguem respostas válidas com zero, respostas sem dados e erros
+persistentes. Não guardam textos, autores ou identificadores de utilizadores
+de reviews.
 
 Os workflows em `.github/workflows/` correm a partir da `main`, fazem checkout
 do código e da branch órfã `data`, e publicam apenas os JSONL e logs na

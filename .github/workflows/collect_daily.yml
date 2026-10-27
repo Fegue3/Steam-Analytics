@@ -19,8 +19,11 @@ on:
 permissions:
   contents: write
 
+# Grupo proprio: um run diario longo nao pode bloquear a recolha horaria (a
+# 24/10 e 25/10 a hora em curso perdeu-se assim). Os ficheiros sao diferentes e
+# o push faz pull --rebase com retentativas.
 concurrency:
-  group: data-branch
+  group: data-branch-daily
   cancel-in-progress: false
 
 jobs:
@@ -66,7 +69,9 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt
-      - run: python -m src.collect_daily --out store
+      # Para de pedir jogos aos 40 min e grava o que tiver; o run seguinte do dia
+      # so pede os jogos em falta.
+      - run: python -m src.collect_daily --out store --max-minutes 40
       - name: Commit e push para o branch data
         if: always()
         working-directory: store

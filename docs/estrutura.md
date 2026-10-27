@@ -9,7 +9,7 @@ Este documento descreve como o projeto está organizado. As pastas e os ficheiro
                                     │
           ┌─────────────────────────┴─────────────────────────┐
 [1] Recolha horária                                  [2] Recolha diária
-    jogadores atuais × 500                         reviews exatas + SteamSpy
+    jogadores atuais × 500                         ficha da loja + SteamSpy
     loja (preço, desconto, reviews)
           │                                                    │
           └──────────►  data/raw/…/*.json  +  logs/  ◄─────────┘
@@ -41,7 +41,7 @@ Steam-Analytics/
 │   ├── collect_common.py        utilitários dos coletores e JSONL
 │   ├── collect_players.py       recolha horária de jogadores
 │   ├── collect_store.py         recolha horária de loja e reviews resumidas
-│   ├── collect_daily.py         recolha diária de reviews e SteamSpy
+│   ├── collect_daily.py         recolha diária da ficha da loja e SteamSpy
 │   ├── build_dataset.py         JSON brutos → CSV tratado
 │   └── data.py                  load_dataset() (exigido pelo enunciado)
 ├── data/
