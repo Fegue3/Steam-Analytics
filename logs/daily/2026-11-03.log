@@ -500,3 +500,7 @@
 2026-11-03 01:23:01,184 INFO steamspy: 499/500 appid 521890 ok
 2026-11-03 01:23:02,353 INFO steamspy: 500/500 appid 2066020 ok
 2026-11-03 01:23:02,355 INFO Fim: ficha da loja 500 ok/0 erros; SteamSpy 500 ok/0 erros
+2026-11-03 12:58:40,897 INFO Início: 500 jogos
+2026-11-03 12:58:40,903 INFO Ficha da loja de hoje já recolhida sem erros; a saltar
+2026-11-03 12:58:40,904 INFO SteamSpy de hoje já recolhido sem erros; a saltar
+2026-11-03 12:58:40,904 INFO Fim: ficha da loja 500 ok/0 erros; SteamSpy 500 ok/0 erros
