@@ -1,39 +1,26 @@
-name: Atualizar review
+name: Atualizar dados tratados
 
 on:
-  # schedule e workflow_run exigem este ficheiro na branch principal.
-  schedule:
-    - cron: "47 */6 * * *"
-  workflow_run:
-    workflows: ["Recolha horaria", "Recolha diaria"]
-    types: [completed]
-    branches: [main]
   workflow_dispatch:
-  push:
-    branches: [review]
-    paths:
-      - "src/build_review.py"
-      - "config/games.csv"
-      - "tests/test_review.py"
-      - ".github/workflows/update_review.yml"
 
 permissions:
   contents: write
 
 concurrency:
-  group: review-branch
+  group: processed-data-main
   cancel-in-progress: false
 
 jobs:
   update:
-    if: github.repository == 'Fegue3/Steam-Analytics'
+    # Executar manualmente na main: o codigo revisto e os CSV ficam nessa branch.
+    if: github.repository == 'Fegue3/Steam-Analytics' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Codigo e resultados da review
+      - name: Codigo e resultados da main
         uses: actions/checkout@v4
         with:
-          ref: review
+          ref: main
           path: project
       - name: Snapshot de dados brutos (apenas leitura)
         uses: actions/checkout@v4
@@ -41,48 +28,28 @@ jobs:
           ref: data
           path: raw-source
           persist-credentials: false
-      - name: Verificar se existe algo novo
-        id: check
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-        run: |
-          python - <<'PY'
-          import hashlib, json, os, pathlib, subprocess
-          root = pathlib.Path('project')
-          path = root / 'review/manifest.json'
-          previous = json.loads(path.read_text()) if path.exists() else {}
-          source = subprocess.check_output(['git', '-C', 'raw-source', 'rev-parse', 'HEAD'], text=True).strip()
-          changed = previous.get('source_commit') != source or os.environ['EVENT_NAME'] == 'push'
-          for key, file in [('games_sha256', 'config/games.csv'), ('builder_sha256', 'src/build_review.py')]:
-              data = (root / file).read_bytes().replace(b'\r\n', b'\n')
-              changed |= previous.get(key) != hashlib.sha256(data).hexdigest()
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
-              output.write(f'changed={str(changed).lower()}\n')
-          print('Atualizar:', changed, '; snapshot:', source)
-          PY
       - uses: actions/setup-python@v5
-        if: steps.check.outputs.changed == 'true'
         with:
           python-version: "3.12"
       - name: Validar transformacao (offline, sem dependencias externas)
-        if: steps.check.outputs.changed == 'true'
         working-directory: project
         run: python -m unittest discover -s tests -p test_review.py -v
       - name: Gerar tabelas e resumo
-        if: steps.check.outputs.changed == 'true'
         working-directory: project
         run: |
           python -m src.build_review --repo ../raw-source --ref HEAD --out review
           cat review/README.md >> "$GITHUB_STEP_SUMMARY"
-      - name: Publicar apenas resultados na review
-        if: steps.check.outputs.changed == 'true'
+      - name: Publicar resultados alterados na main
         working-directory: project
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- review
-          git diff --cached --quiet && exit 0
-          git commit -m "Atualizar dados organizados da review"
+          git add -A -- review
+          if git diff --cached --quiet; then
+            echo "Os datasets ja estao atualizados; sem novo commit."
+            exit 0
+          fi
+          git commit -m "Atualizar datasets tratados"
           # Sem force nem rebase de resultados gerados. Um push concorrente provoca
-          # nova geracao sobre a versao mais recente na proxima execucao.
-          git push origin HEAD:review
+          # uma falha; voltar a executar manualmente para usar a main mais recente.
+          git push origin HEAD:main

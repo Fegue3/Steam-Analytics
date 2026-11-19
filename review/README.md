@@ -31,7 +31,7 @@ Contagens após escolher uma observação por jogo e hora/dia. `recolhas.csv` co
 O intervalo horário vai da primeira à última hora observada nas fontes horárias; os dias das extremidades podem ser parciais.
 As fontes diárias são verificadas em todos os dias do período observado.
 
-**Datas de recolha não são a data de hoje:** este relatório mostra o último snapshot disponível. A atualização da review não faz novas recolhas nem preenche lacunas.
+**Datas de recolha não são a data de hoje:** este relatório mostra o último snapshot disponível. A atualização dos CSV não faz novas recolhas nem preenche lacunas.
 
 ## Lacunas de cobertura
 

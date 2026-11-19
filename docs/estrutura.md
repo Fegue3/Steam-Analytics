@@ -2,11 +2,13 @@
 
 Este documento descreve como o projeto está organizado. As pastas e os ficheiros só se criam quando são precisos.
 
-Na branch `review`, o módulo `src/build_review.py` lê um snapshot imutável
+Na `main`, o módulo `src/build_review.py` lê um snapshot imutável
 da branch `data` e gera os resultados em `review/`: resumo Markdown, CSV
 por jogo/hora/dia, fichas e estimativas diárias, cobertura e falhas.
 Ver [`review/README.md`](../review/README.md) e [`docs/review.md`](review.md).
-Este passo já está implementado; os módulos `build_dataset.py` e `data.py`
+O workflow `update_review.yml` é executado apenas manualmente e publica os
+resultados alterados na pasta `review/` da `main`. Este passo já está
+implementado; os módulos `build_dataset.py` e `data.py`
 na árvore abaixo continuam a representar o processamento analítico planeado.
 
 ## Fluxo de dados

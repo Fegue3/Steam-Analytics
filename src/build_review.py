@@ -329,7 +329,7 @@ def render(root: Path, games: list[dict], tables: dict, quality: list[dict], fai
         "O intervalo horário vai da primeira à última hora observada nas fontes horárias; os dias das extremidades podem ser parciais.",
         "As fontes diárias são verificadas em todos os dias do período observado.", "",
         "**Datas de recolha não são a data de hoje:** este relatório mostra o último snapshot disponível. "
-        "A atualização da review não faz novas recolhas nem preenche lacunas.", ""]
+        "A atualização dos CSV não faz novas recolhas nem preenche lacunas.", ""]
     missing = [g for g in gaps if g["ausentes"]]
     if missing:
         report += ["## Lacunas de cobertura", "", "| Fonte | Período UTC | Jogos sem registo |",
@@ -394,12 +394,15 @@ def build(games_path: Path, out: Path, raw: Path | None = None, ref: str = "orig
         for path in generated:
             target = out / path.relative_to(stage)
             target.parent.mkdir(parents=True, exist_ok=True)
+            contents = path.read_bytes()
+            if target.is_file() and target.read_bytes() == contents:
+                continue
             # Mover diretamente da TemporaryDirectory preservaria o ACL privado
             # no Windows. O ficheiro novo deve herdar as permissões da pasta final.
             sibling = target.parent / f".review-{uuid.uuid4().hex}.tmp"
             try:
                 with sibling.open("xb") as stream:
-                    stream.write(path.read_bytes())
+                    stream.write(contents)
                 os.replace(sibling, target)
             finally:
                 sibling.unlink(missing_ok=True)

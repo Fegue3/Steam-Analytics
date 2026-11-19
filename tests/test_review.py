@@ -2,6 +2,7 @@
 import csv
 import hashlib
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -199,6 +200,19 @@ class ReviewTest(unittest.TestCase):
         self.games.write_bytes(self.games.read_bytes().replace(b"\r\n", b"\n"))
         self.generate()
         self.assertEqual(before, self.snapshot())
+
+    def test_rebuild_preserves_unchanged_files_and_updates_changed_data(self):
+        self.record("players", "2026-10-28T10:17:00Z", [{"appid": 1, "status": "ok", "players": 3}])
+        self.generate()
+        target = self.out / "jogos.csv"
+        old_time = 946684800
+        os.utime(target, (old_time, old_time))
+        self.generate()
+        self.assertEqual(target.stat().st_mtime, old_time)
+        self.record("players", "2026-10-28T11:17:00Z", [{"appid": 1, "status": "ok", "players": 8}])
+        self.generate()
+        self.assertNotEqual(target.stat().st_mtime, old_time)
+        self.assertEqual(self.rows("jogos.csv")[0]["jogadores"], "8")
 
     def test_empty_input_and_cli_failure_return_nonzero(self):
         with self.assertRaisesRegex(ValueError, "Não foram encontradas"):

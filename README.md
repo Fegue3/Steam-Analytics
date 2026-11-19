@@ -1,14 +1,15 @@
 # Steam Analytics
 
-**Branch `review`:** os dados brutos da branch `data` estão organizados em
+**Dados tratados:** os dados brutos da branch `data` estão organizados na pasta
 [`review/README.md`](review/README.md), com um resumo em português, tabelas
 CSV por jogo/hora/dia e relatórios de cobertura e falhas. Ver
-[`docs/review.md`](docs/review.md) para atualizar e ativar a automação.
+[`docs/review.md`](docs/review.md) para os atualizar manualmente. O código e
+os resultados ficam na `main`; a branch `data` conserva os brutos.
 
 **Projeto de Ciência de Dados (UBI, MEI 2026/27).** Monitorização da atividade e da popularidade de 500 jogos da Steam: jogadores de hora a hora, preços, descontos e avaliações, em 5 categorias de 100 jogos.
 
-**Estado atual:** a seleção dos jogos e a recolha estão implementadas. Nesta
-branch, o processamento para revisão está disponível em `src/build_review.py`;
+**Estado atual:** a seleção dos jogos e a recolha estão implementadas. O
+processamento para revisão está disponível em `src/build_review.py`;
 o notebook e a app continuam planeados. A estrutura do repositório está em
 [`docs/estrutura.md`](docs/estrutura.md).
 

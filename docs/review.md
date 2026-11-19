@@ -1,8 +1,10 @@
-# Dados organizados na branch review
+# Dados tratados na main
 
-A branch `review` nasce da `main` e contém o código de transformação e os
-resultados em [`review/`](../review/README.md). A `data` continua a guardar os
-dados brutos. Não se faz merge da `data` na `review`.
+O código de transformação e os datasets tratados ficam na branch `main`,
+com os resultados na pasta [`review/`](../review/README.md). `review/` é o
+nome da pasta de saída; não é necessário usar uma branch separada para os
+dados tratados. A branch `data` continua a guardar apenas os brutos e logs,
+e é lida como um snapshot imutável, sem fazer merge com a `main`.
 
 ## Consultar os dados
 
@@ -112,40 +114,44 @@ O script não faz pedidos às APIs, fetch, merge, commit ou push. Lê um snapsho
 imutável, gera todos os resultados numa pasta temporária e só os publica
 depois da validação. Os resultados são determinísticos: o mesmo snapshot,
 lista de jogos e código geram os mesmos ficheiros, sem commits só para mudar
-a data de geração.
+a data de geração. Ficheiros iguais aos existentes são mantidos; os que
+mudaram são substituídos e os novos são acrescentados. CSV horários de dias
+que deixaram de existir no snapshot são removidos para evitar dados antigos.
 
 Para ler o Git de outro checkout sem copiar os dados, usar
 `python -m src.build_review --repo caminho/para/checkout-data --ref HEAD`.
 
-## Atualização automática
+## Executar a atualização manual
 
-O workflow [Atualizar review](../.github/workflows/update_review.yml):
+Depois de integrar este trabalho na `main`, no GitHub:
 
-1. É lançado após terminar uma recolha horária/diária na `main`, mesmo que
-   esta tenha falhado depois de guardar resultados parciais.
-2. Tem uma verificação de reserva a cada seis horas, ao minuto 47 UTC, e
-   permite execução manual em Actions → Atualizar review → Run workflow.
-3. Faz checkout do código e resultados da `review` e um checkout só de
-   leitura da `data`. Se o commit de origem, a lista e o código de
-   transformação não mudaram, termina sem reconstruir.
-4. Corre os testes offline da transformação, gera as tabelas e faz commit
-   apenas de `review/` na branch `review`, se os resultados mudaram.
+1. Abrir **Actions → Atualizar dados tratados**.
+2. Carregar em **Run workflow** e escolher a branch **main**.
+3. Confirmar **Run workflow** e aguardar o resultado.
+4. Consultar o resumo do run ou abrir `review/README.md` na `main`.
+
+O workflow [`update_review.yml`](../.github/workflows/update_review.yml)
+tem apenas o evento `workflow_dispatch`: não corre por horário, por push ou
+depois das recolhas. O job só executa quando é escolhido o repositório do
+projeto e a branch `main`.
+
+Em cada execução, lê o código e os resultados atuais da `main`, obtém um
+checkout apenas de leitura da `data`, corre os testes offline da transformação
+e gera novamente as tabelas a partir desse snapshot. Faz commit apenas das
+diferenças na pasta `review/`, incluindo ficheiros novos, alterados e CSV
+horários que tenham deixado de fazer parte do snapshot. Se o conteúdo já
+estiver atualizado, termina sem criar commit.
 
 Usa o `GITHUB_TOKEN` automático com `contents: write`, sem PAT ou novos
-segredos. Não escreve na `data`. Não faz force push; se uma pessoa atualizar
-a `review` ao mesmo tempo, o push falha e o run seguinte volta a gerar os
-resultados sobre o código mais recente.
+segredos. Não escreve na `data`. Não faz force push nem rebase dos resultados
+gerados. Se a `main` avançar durante o processamento, o push falha; repetir
+a execução manual para trabalhar sobre a versão mais recente.
 
-**Ativação:** publicar a `review` e integrar **apenas**
-`.github/workflows/update_review.yml` na branch principal (`main`). O GitHub
-exige o workflow na branch principal para `schedule`, `workflow_run` e para
-o descobrir no menu de execução manual. O código e os dados organizados
-permanecem na `review`; não é necessário fazer merge desta branch na `main`.
-Ver [eventos do GitHub Actions](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows).
+**Integração:** o PR deve incluir o workflow, `src/build_review.py`, os testes,
+a documentação e todos os resultados de `review/`. Assim a `main` fica
+completa e utilizável pela app e pelo notebook. A branch `review` usada no
+desenvolvimento inicial pode continuar como histórico, mas deixa de ser o
+destino do workflow.
 
-O workflow também corre quando o código/lista/testes são publicados na
-`review`, antes da ativação dos eventos automáticos. Não usa `push` na
-`data` como gatilho: commits criados pelo `GITHUB_TOKEN` não desencadeiam
-normalmente outros workflows por esse evento. Os agendamentos podem
-atrasar; a recolha continua independente e a reserva reprocessa o snapshot
-disponível. Se a recolha acabar, atualizar a review não cria dados novos.
+Atualizar os CSV não inicia novas recolhas nem preenche lacunas: os dados
+continuam limitados ao snapshot existente na branch `data`.
