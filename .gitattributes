@@ -1,0 +1,5 @@
+# Resultados determinísticos no Windows e no GitHub Actions.
+review/** text eol=lf
+src/build_review.py text eol=lf
+tests/test_review.py text eol=lf
+.github/workflows/update_review.yml text eol=lf
