@@ -2,7 +2,7 @@
   "schema_version": 1,
   "source_commit": "68b4d7bd48ee05c4af9ff105000f1abeaca579ed",
   "games_sha256": "eaa1cc5062d7906bc0dee0cef22aa1db3df5b97575e11c191f3860ba99f1d524",
-  "builder_sha256": "3702aa5669e4384d31cfc78eb55ccb50b68aa755166cb53c367c172b841e2ac3",
+  "builder_sha256": "7c44951ff7d2d3acbdb9a10e04972b59d62ba3b70493f6314db86324e1f1686b",
   "input_sha256": {
     "raw/metadata/2026-10-28.jsonl": "dd37be20b1b8dc0aeecbf106666db8965eb0d21fe9322a96b986fa96d19c8c1d",
     "raw/metadata/2026-10-29.jsonl": "e273740af7e0d662858d19882a540be4588672a9c9332706df9369e036cf8b5d",

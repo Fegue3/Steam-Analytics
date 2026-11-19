@@ -70,7 +70,10 @@ def input_files(raw: Path | None, ref: str, repo: Path | None = None):
                     yield f"raw/{source}/{path.name}", stream
         return
     with tempfile.TemporaryFile() as archive:
-        subprocess.run(["git", "-C", str(repo or Path.cwd()), "archive", ref, "raw"], stdout=archive, check=True)
+        # git archive também aplica core.autocrlf: desativar para ler os bytes
+        # originais dos blobs e obter hashes iguais no Windows e no Linux.
+        subprocess.run(["git", "-c", "core.autocrlf=false", "-C", str(repo or Path.cwd()),
+                        "archive", ref, "raw"], stdout=archive, check=True)
         archive.seek(0)
         with tarfile.open(fileobj=archive) as tree:
             for member in tree:

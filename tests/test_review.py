@@ -176,6 +176,7 @@ class ReviewTest(unittest.TestCase):
         def git(*args):
             return subprocess.check_output(["git", "-C", str(self.root), *args], text=True).strip()
         git("init", "--quiet")
+        git("config", "core.autocrlf", "true")
         git("add", "raw")
         git("-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-qm", "fixture")
         # Código e dados podem estar em checkouts separados, como no Action.
@@ -187,6 +188,9 @@ class ReviewTest(unittest.TestCase):
                          {k: v for k, v in after.items() if k != "manifest.json"})
         manifest = json.loads((self.out / "manifest.json").read_text())
         self.assertEqual(manifest["source_commit"], git("rev-parse", "HEAD"))
+        raw_path = "raw/players/2026-10-28.jsonl"
+        blob = subprocess.check_output(["git", "-C", str(self.root), "show", "HEAD:" + raw_path])
+        self.assertEqual(manifest["input_sha256"][raw_path], hashlib.sha256(blob).hexdigest())
 
     def test_windows_and_linux_line_endings_have_same_manifest_hash(self):
         self.record("players", "2026-10-28T10:17:00Z", [{"appid": 1, "status": "ok", "players": 3}])
