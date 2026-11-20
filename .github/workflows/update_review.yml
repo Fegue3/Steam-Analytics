@@ -1,0 +1,55 @@
+name: Atualizar dados tratados
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: processed-data-main
+  cancel-in-progress: false
+
+jobs:
+  update:
+    # Executar manualmente na main: o codigo revisto e os CSV ficam nessa branch.
+    if: github.repository == 'Fegue3/Steam-Analytics' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Codigo e resultados da main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: project
+      - name: Snapshot de dados brutos (apenas leitura)
+        uses: actions/checkout@v4
+        with:
+          ref: data
+          path: raw-source
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validar transformacao (offline, sem dependencias externas)
+        working-directory: project
+        run: python -m unittest discover -s tests -p test_review.py -v
+      - name: Gerar tabelas e resumo
+        working-directory: project
+        run: |
+          python -m src.build_review --repo ../raw-source --ref HEAD --out review
+          cat review/README.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Publicar resultados alterados na main
+        working-directory: project
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A -- review
+          if git diff --cached --quiet; then
+            echo "Os datasets ja estao atualizados; sem novo commit."
+            exit 0
+          fi
+          git commit -m "Atualizar datasets tratados"
+          # Sem force nem rebase de resultados gerados. Um push concorrente provoca
+          # uma falha; voltar a executar manualmente para usar a main mais recente.
+          git push origin HEAD:main
