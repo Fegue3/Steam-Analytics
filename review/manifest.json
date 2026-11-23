@@ -2,7 +2,7 @@
   "schema_version": 1,
   "source_commit": "68b4d7bd48ee05c4af9ff105000f1abeaca579ed",
   "games_sha256": "eaa1cc5062d7906bc0dee0cef22aa1db3df5b97575e11c191f3860ba99f1d524",
-  "builder_sha256": "781dfae134c8fea72afe038d7690c15db684c21158aff9e6b3186f5a2eaae464",
+  "builder_sha256": "e7480a3c093bfe71a45974e0ca920394c699d04d8fc08dc4c0c7544685b71869",
   "input_sha256": {
     "raw/metadata/2026-10-28.jsonl": "dd37be20b1b8dc0aeecbf106666db8965eb0d21fe9322a96b986fa96d19c8c1d",
     "raw/metadata/2026-10-29.jsonl": "e273740af7e0d662858d19882a540be4588672a9c9332706df9369e036cf8b5d",
@@ -85,6 +85,6 @@
     "steamspy_diario.csv": 7000,
     "recolhas.csv": 696,
     "cobertura.csv": 700,
-    "falhas.csv": 0
+    "falhas.csv": 934
   }
 }
