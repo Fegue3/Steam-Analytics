@@ -214,6 +214,52 @@ class ReviewTest(unittest.TestCase):
         self.assertNotEqual(target.stat().st_mtime, old_time)
         self.assertEqual(self.rows("jogos.csv")[0]["jogadores"], "8")
 
+    def test_false_zero_is_no_data_and_traceable(self):
+        for hour, players in [(10, 900), (11, 0), (12, 950), (13, 0)]:
+            self.record("players", f"2026-10-28T{hour}:17:00Z", [
+                {"appid": 1, "status": "ok", "players": players},
+                {"appid": 2, "status": "ok", "players": 60 if players else 0}])
+        self.generate()
+        hourly = self.rows("horario/2026-10-28.csv")
+        big = [r for r in hourly if r["appid"] == "1"]
+        self.assertEqual([r["jogadores"] for r in big], ["900", "", "950", ""])
+        self.assertEqual([r["estado_jogadores"] for r in big], ["OK", "Sem dados"] * 2)
+        # Num jogo pequeno o zero é plausível.
+        self.assertEqual([r["jogadores"] for r in hourly if r["appid"] == "2"], ["60", "0"] * 2)
+        daily = self.rows("diario.csv")[0]
+        self.assertEqual((daily["jogadores_min"], daily["jogadores_media"]), ("900", "925.0"))
+        self.assertEqual(daily["horas_jogadores_sem_dados"], "2")
+        failures = self.rows("falhas.csv")
+        self.assertEqual(len(failures), 2)
+        self.assertIn("Zero implausível", failures[0]["motivo"])
+        self.assertEqual(failures[0]["run_id"], "123")
+        self.assertEqual(self.rows("recolhas.csv")[1]["ok"], "2")
+        self.assertIn("recente (2026-10-28T12:00:00Z)", (self.out / "README.md").read_text(encoding="utf-8"))
+
+    def test_consecutive_zeros_are_kept(self):
+        for hour, players in [(10, 900), (11, 0), (12, 0), (13, 0)]:
+            self.record("players", f"2026-10-28T{hour}:17:00Z", [{"appid": 1, "status": "ok", "players": players}])
+        self.generate()
+        values = [r["jogadores"] for r in self.rows("horario/2026-10-28.csv") if r["appid"] == "1"]
+        self.assertEqual(values, ["900", "0", "0", "0"])
+        self.assertEqual(self.rows("falhas.csv"), [])
+
+    def test_zero_retry_does_not_replace_positive_reading(self):
+        self.record("players", "2026-10-28T10:10:00Z", [{"appid": 1, "status": "ok", "players": 900}])
+        self.record("players", "2026-10-28T10:20:00Z", [{"appid": 1, "status": "ok", "players": 0}])
+        self.generate()
+        self.assertEqual(self.rows("horario/2026-10-28.csv")[0]["jogadores"], "900")
+
+    def test_steamspy_unknown_game_is_no_data(self):
+        unknown = {"status": "ok", "owners": "0 .. 20,000", "ccu": 0, "positive": 0, "negative": 0}
+        self.record("steamspy", "2026-10-28T05:45:00Z", [{"appid": 1, **unknown},
+            {"appid": 2, **unknown, "positive": 3}])
+        self.generate()
+        rows = self.rows("steamspy_diario.csv")
+        self.assertEqual([r["estado_steamspy"] for r in rows], ["Sem dados", "OK"])
+        self.assertEqual([r["proprietarios_max_estimados"] for r in rows], ["", "20000"])
+        self.assertIn("SteamSpy sem informação", self.rows("falhas.csv")[0]["motivo"])
+
     def test_empty_input_and_cli_failure_return_nonzero(self):
         with self.assertRaisesRegex(ValueError, "Não foram encontradas"):
             self.generate()

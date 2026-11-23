@@ -22,10 +22,10 @@ Os CSV têm cabeçalhos em português, texto UTF-8, vírgula como separador e po
 
 | Fonte | Última tentativa (UTC) | OK | Sem dados | Erros | Ausentes |
 |---|---|---:|---:|---:|---:|
-| players | 2026-11-10T23:17:25Z | 167000 | 0 | 0 | 1000 |
+| players | 2026-11-10T23:17:25Z | 166346 | 654 | 0 | 1000 |
 | store | 2026-11-10T23:17:27Z | 167000 | 0 | 0 | 1000 |
 | metadata | 2026-11-10T01:45:27Z | 7000 | 0 | 0 | 0 |
-| steamspy | 2026-11-10T01:45:28Z | 7000 | 0 | 0 | 0 |
+| steamspy | 2026-11-10T01:45:28Z | 6720 | 280 | 0 | 0 |
 
 Contagens após escolher uma observação por jogo e hora/dia. `recolhas.csv` conserva todas as tentativas.
 O intervalo horário vai da primeira à última hora observada nas fontes horárias; os dias das extremidades podem ser parciais.
@@ -42,30 +42,31 @@ As fontes diárias são verificadas em todos os dias do período observado.
 | store | 2026-11-04T11:00:00Z | 500 |
 | store | 2026-11-09T18:00:00Z | 500 |
 
-## Mais jogadores na última hora observada (2026-11-10T23:00:00Z)
+## Mais jogadores na hora mais completa e recente (2026-11-10T22:00:00Z)
 
 | Jogo | Categoria | Jogadores |
 |---|---|---:|
-| Counter-Strike 2 | Competitivos | 459,849 |
-| Dota 2 | Competitivos | 255,367 |
-| Call of Duty® | Competitivos | 124,833 |
-| PUBG: BATTLEGROUNDS | Competitivos | 98,702 |
-| Rust | Sobrevivência e cooperação | 65,995 |
-| Apex Legends™ | Competitivos | 51,986 |
-| Warframe | Sobrevivência e cooperação | 46,238 |
-| Overwatch® | Competitivos | 42,805 |
-| Geometry Dash | Independentes | 42,533 |
-| Dead by Daylight | Sobrevivência e cooperação | 37,214 |
-| War Thunder | Estratégia e simulação | 36,491 |
-| Project Zomboid | Sobrevivência e cooperação | 35,879 |
-| Enshrouded | Sobrevivência e cooperação | 35,456 |
-| Slay the Spire 2 | Sobrevivência e cooperação | 35,361 |
-| EA SPORTS FC™ 27 | AAA | 32,466 |
+| Counter-Strike 2 | Competitivos | 704,609 |
+| Dota 2 | Competitivos | 501,249 |
+| Call of Duty® | Competitivos | 132,562 |
+| PUBG: BATTLEGROUNDS | Competitivos | 123,751 |
+| Team Fortress 2 | Competitivos | 95,494 |
+| Cyberpunk 2077 | AAA | 88,764 |
+| Rust | Sobrevivência e cooperação | 81,289 |
+| Apex Legends™ | Competitivos | 60,784 |
+| Tom Clancy's Rainbow Six Siege | Competitivos | 58,556 |
+| WARDOGS | Competitivos | 54,753 |
+| ARC Raiders | Competitivos | 52,149 |
+| Warframe | Sobrevivência e cooperação | 48,862 |
+| Valheim | Sobrevivência e cooperação | 46,714 |
+| Overwatch® | Competitivos | 45,444 |
+| Geometry Dash | Independentes | 44,391 |
 
 ## Como interpretar
 
 - Um campo vazio significa desconhecido; zero é um valor observado. Jogos gratuitos válidos têm preço 0.00 USD.
 - `Ausente`: não houve registo; `Sem dados`: a API respondeu sem dados; `Erro`: a tentativa falhou.
+- Zeros implausíveis da API e fichas vazias do SteamSpy contam como `Sem dados`; o motivo está em `falhas.csv`.
 - As médias e picos usam apenas respostas válidas, sem interpolação. Jogadores são simultâneos, não utilizadores únicos.
 - Preços da loja usam o contexto US do coletor (USD); SteamSpy é uma fonte separada de estimativas.
 - A última observação de cada fonte pode ter uma data diferente: confirmar as colunas `recolha_*_utc`.
