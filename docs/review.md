@@ -37,9 +37,22 @@ para consultar todas as linhas.
   tentativa mais recente. Assim um retry falhado não apaga uma resposta válida.
 - As tentativas originais continuam em `recolhas.csv` e as falhas em
   `falhas.csv`. As tabelas organizadas mostram o resultado escolhido.
-- Um vazio significa desconhecido. `0` é um valor válido. `Ausente` significa
-  que não existe registo; `Sem dados` é uma resposta explícita da API;
+- Um vazio significa desconhecido. `0` é um valor válido, salvo
+  as duas exceções abaixo. `Ausente` significa
+  que não existe registo; `Sem dados` é uma resposta da API sem dados
+  ou com conteúdo implausível;
   `Erro` é uma tentativa falhada. Nunca se preenchem lacunas por interpolação.
+- **Zeros falsos de jogadores:** a API respondeu 0, sem erro, em jogos com
+  milhares de jogadores. Um 0 passa a `Sem dados` quando as leituras válidas
+  imediatamente antes e depois (ou a única existente, nas extremidades) têm
+  pelo menos 100 jogadores. Zeros consecutivos ou em jogos pequenos são
+  mantidos. Numa repetição da mesma hora, uma leitura positiva prevalece
+  sobre um 0. Não se estima o valor em falta.
+- **SteamSpy sem informação:** 0 avaliações positivas, 0 negativas e um
+  mínimo de 0 proprietários é a resposta do SteamSpy para jogos que não
+  conhece; a ficha desse dia passa a `Sem dados`.
+- Ambos os casos ficam em `falhas.csv` com o motivo. Os brutos e as contagens
+  por tentativa de `recolhas.csv` mantêm o estado original do coletor.
 - Jogos gratuitos com resposta válida têm preço `0.00`. Outros preços em
   falta continuam vazios. A loja usa o contexto **US** do coletor atual:
   preços em **USD**, convertidos de cêntimos. SteamSpy mantém os seus preços
@@ -54,7 +67,8 @@ para consultar todas as linhas.
   recolha de qualquer fonte. Não se inventam horas antes/depois do snapshot.
 - `jogos.csv` mostra a observação da hora mais recente **de cada jogo/fonte**;
   verificar os timestamps e estados antes de comparar jogos. O ranking no
-  relatório usa uma única hora comum, a última observada nas fontes horárias.
+  relatório usa uma única hora comum: a que tem mais respostas válidas de
+  jogadores e, em empate, a mais recente.
 - As estimativas de proprietários SteamSpy são intervalos, não vendas
   exatas. `ccu_steamspy` conserva a métrica do SteamSpy e não substitui a
   recolha de jogadores atuais da Steam.

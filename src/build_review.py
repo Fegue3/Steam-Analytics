@@ -22,6 +22,10 @@ LABELS = {"competitive": "Competitivos", "strategy_sim": "Estratégia e simulaç
           "survival_coop": "Sobrevivência e cooperação", "aaa": "AAA", "indie": "Independentes"}
 STATES = {"ok": "OK", "no_data": "Sem dados", "error": "Erro"}
 RANK = {"error": 0, "no_data": 1, "ok": 2}
+# Um 0 entre leituras deste nível ou superior é uma falha da API, não uma observação.
+FALSE_ZERO_NEIGHBOUR = 100
+FALSE_ZERO = "Zero implausível: a API respondeu 0 entre leituras altas"
+SPY_UNKNOWN = "SteamSpy sem informação: 0 avaliações e 0 proprietários mínimos"
 IDENTITY = ["appid", "jogo", "categoria"]
 PLAYER = ["jogadores", "estado_jogadores", "recolha_jogadores_utc"]
 STORE = ["preco_usd", "preco_original_usd", "desconto_pct", "fim_desconto_utc",
@@ -124,12 +128,11 @@ def read_data(raw: Path | None, ref: str, games: list[dict], repo: Path | None =
                     if source == "players" and status == "ok":
                         if type(item.get("players")) is not int or item["players"] < 0:
                             raise ValueError(f"Número de jogadores inválido: {appid}")
-                    entry = {**item, "collected_at_utc": collected}
+                    entry = {**item, "collected_at_utc": collected, "run_id": str(record.get("run_id", ""))}
                     key = slot, appid
                     old = tables[source].get(key)
-                    # Uma tentativa falhada não apaga uma resposta válida do mesmo período.
-                    score = RANK[status], collected
-                    if old is None or score >= (RANK[old["status"]], old["collected_at_utc"]):
+                    # Uma tentativa falhada (ou um 0 da API) não apaga uma resposta válida do mesmo período.
+                    if old is None or preference(entry) >= preference(old):
                         tables[source][key] = entry
                 quality.append(dict(zip(QUALITY, [source, collected, timestamp(record["finished_at_utc"]),
                     hour, str(record.get("run_id", "")), len(items), counts["ok"], counts["no_data"],
@@ -140,7 +143,36 @@ def read_data(raw: Path | None, ref: str, games: list[dict], repo: Path | None =
         hashes[filename] = digest.hexdigest()
     if not quality:
         raise ValueError("Não foram encontradas recolhas JSONL")
+    for source, entry, reason in implausible(tables):
+        entry["status"] = "no_data"
+        failures.append({"fonte": source, "recolha_utc": entry["collected_at_utc"],
+            **identity(catalog[int(entry["appid"])]), "estado": STATES["no_data"],
+            "http_status": None, "motivo": reason, "run_id": entry["run_id"]})
     return tables, quality, failures, hashes, sorted(dates)
+
+
+def preference(entry: dict) -> tuple:
+    return RANK[entry["status"]], entry.get("players") != 0, entry["collected_at_utc"]
+
+
+def implausible(tables: dict) -> list[tuple]:
+    """Respostas 'ok' cujo conteúdo é uma falha da API; os brutos não são alterados."""
+    found = []
+    series = defaultdict(list)
+    for (_, appid), entry in sorted(tables["players"].items()):
+        if entry["status"] == "ok":
+            series[appid].append(entry)
+    for entries in series.values():
+        for i, entry in enumerate(entries):
+            near = [e["players"] for e in entries[max(i - 1, 0):i] + entries[i + 1:i + 2]]
+            # Zeros consecutivos (ex.: servidores encerrados) ou em jogos pequenos são mantidos.
+            if entry["players"] == 0 and near and min(near) >= FALSE_ZERO_NEIGHBOUR:
+                found.append(("players", entry, FALSE_ZERO))
+    for _, entry in sorted(tables["steamspy"].items()):
+        if (entry["status"] == "ok" and entry.get("positive") == 0 and entry.get("negative") == 0
+                and spy_values(entry)["proprietarios_min_estimados"] == 0):
+            found.append(("steamspy", entry, SPY_UNKNOWN))
+    return found
 
 
 def identity(game: dict) -> dict:
@@ -339,11 +371,14 @@ def render(root: Path, games: list[dict], tables: dict, quality: list[dict], fai
             report += ["", f"Mais {len(missing) - 20} períodos com lacunas em `cobertura.csv`."]
         report.append("")
     if slots:
-        final_hour = slots[-1]
+        # Hora com mais respostas válidas (a mais recente em empate): uma falha parcial
+        # da API na última hora não pode retirar jogos do ranking.
+        valid = Counter(slot for (slot, _), e in tables["players"].items() if e["status"] == "ok")
+        final_hour = max(slots, key=lambda slot: (valid[slot], slot))
         ranking = [(tables["players"].get((final_hour, g["appid"])), g) for g in games]
         ranking = sorted(((p, g) for p, g in ranking if p and p["status"] == "ok"),
                          key=lambda pair: (-pair[0]["players"], pair[1]["appid"]))
-        report += [f"## Mais jogadores na última hora observada ({final_hour})", "",
+        report += [f"## Mais jogadores na hora mais completa e recente ({final_hour})", "",
                    "| Jogo | Categoria | Jogadores |", "|---|---|---:|"]
         for entry, game in ranking[:15]:
             name = game["name"].replace("|", "\\|").replace("\n", " ")
@@ -353,6 +388,7 @@ def render(root: Path, games: list[dict], tables: dict, quality: list[dict], fai
     report += ["", "## Como interpretar", "",
         "- Um campo vazio significa desconhecido; zero é um valor observado. Jogos gratuitos válidos têm preço 0.00 USD.",
         "- `Ausente`: não houve registo; `Sem dados`: a API respondeu sem dados; `Erro`: a tentativa falhou.",
+        "- Zeros implausíveis da API e fichas vazias do SteamSpy contam como `Sem dados`; o motivo está em `falhas.csv`.",
         "- As médias e picos usam apenas respostas válidas, sem interpolação. Jogadores são simultâneos, não utilizadores únicos.",
         "- Preços da loja usam o contexto US do coletor (USD); SteamSpy é uma fonte separada de estimativas.",
         "- A última observação de cada fonte pode ter uma data diferente: confirmar as colunas `recolha_*_utc`.", ""]
