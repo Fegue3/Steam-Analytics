@@ -73,3 +73,46 @@ Implementação dos coletores e da sua execução automática com GitHub Actions
 - **Período de recolha:** definido pelas variáveis do repositório `COLLECT_START` e `COLLECT_END` (UTC). Fora desse período, os runs agendados terminam sem recolher; as execuções manuais ignoram o período. Os runs agendados só recolhem no repositório `Fegue3/Steam-Analytics`.
 - **Primeiro período:** teste de 48 horas, inicialmente de 20/10/2026 00:00 UTC a 22/10/2026 00:00 UTC. Como os dados de 20/10 ficaram com horas em falta, foram removidos da `data` e o teste foi reiniciado para 21/10/2026 00:00 UTC a 23/10/2026 00:00 UTC.
 - **Recolha de 14 dias:** começou a 24/10/2026 00:00 UTC, mas a recolha diária não gravou nenhum dado até 27/10 (ver a correção da recolha diária acima). A `data` foi reposta e a recolha recomeçou do zero, de 28/10/2026 00:00 UTC a 11/11/2026 00:00 UTC.
+
+## 7. Organização dos dados para revisão
+
+**Responsável:** Hugo
+**Commits:** `8e2e1e3`, `982ef32`, `0783097` (19/11/2026)
+
+Transformação dos dados brutos da branch `data` em tabelas legíveis e verificáveis na pasta `review/`:
+
+- **Gerador `src/build_review.py`:** lê um snapshot imutável da branch `data` (os JSONL de jogadores, loja, fichas e SteamSpy) sem fazer pedidos às APIs nem alterar a `data`. Gera:
+  - `horario/`: um CSV por dia, com uma linha por jogo e por hora, juntando jogadores e loja;
+  - `diario.csv`: média, mínimo e pico de jogadores, preços e cobertura, por jogo e por dia;
+  - `jogos.csv`: última observação e estatísticas do período por jogo;
+  - `metadados_diarios.csv` e `steamspy_diario.csv`: ficha da loja e estimativas SteamSpy, por dia;
+  - `cobertura.csv`, `recolhas.csv` e `falhas.csv`: horas em falta, todas as tentativas de recolha e as falhas com o motivo;
+  - `manifest.json`: commit de origem e hashes dos dados e do código, para garantir a reprodutibilidade.
+- **Regras de limpeza:**
+  - uma observação por jogo e por hora (ou dia): ganha `ok`, depois `sem dados`, depois `erro`, e entre estados iguais a tentativa mais recente, para um retry falhado não apagar uma resposta válida;
+  - junção por AppID + hora sem arrastar valores de outras horas;
+  - vazio = desconhecido, sem interpolação;
+  - preços da loja convertidos de cêntimos para USD.
+- **Resumo em português** (`review/README.md`): estado de cada fonte, lacunas de cobertura e jogos com mais jogadores.
+- **Correção para Windows:** a leitura dos snapshots Git preserva os bytes originais dos ficheiros, para os hashes e os resultados serem iguais no Windows e no GitHub Actions.
+- **Workflow `update_review.yml`:** passou a correr só manualmente e a publicar os CSV diretamente na pasta `review/` da `main`, em vez de numa branch separada.
+- **Testes offline** (`tests/test_review.py`) e documentação das colunas e regras em `docs/review.md`.
+
+## 8. Dataset final de análise
+
+**Responsável:** Daniel
+**Commits:** _(a preencher após o merge)_ (26/11/2026)
+
+Criação do dataset final pedido no enunciado (Data Processing), a partir das tabelas já limpas em `review/`:
+
+- **Gerador `src/build_dataset.py`:** junta os 14 ficheiros horários (jogadores + loja) com a ficha de cada jogo e as estimativas SteamSpy num único CSV, `data/processed/steam_dataset.csv`, com uma linha por jogo e por hora (500 jogos × 336 horas = 168 000 linhas, 37 colunas). Antes de gravar, valida que a grelha jogo × hora está completa e sem repetidos.
+- **Valores em falta:** os jogadores são interpolados linearmente por jogo, só em lacunas de até 2 horas seguidas entre leituras válidas (1 548 valores, assinalados em `jogadores_interpolado`). As 2 horas sem recolha (04/11 11h, 09/11 18h) ficam preenchidas. Os 106 `Sem dados` da última hora (10/11 23h) ficam vazios, porque não há leitura depois. A loja não é interpolada, porque preços e descontos mudam por degraus. Os valores observados nunca são alterados: os tratados ficam em colunas novas.
+- **Novas variáveis:**
+  - tempo: hora do dia, dia da semana, fim de semana;
+  - jogadores: `log_jogadores`, jogadores relativos à média do próprio jogo, z-score por jogo, variação % face à hora anterior, quartil de popularidade;
+  - loja: `em_desconto`, novas avaliações por hora;
+  - jogo: idade em anos, 3 etiquetas principais, número de idiomas e de plataformas;
+  - SteamSpy: proprietários estimados (ponto médio do intervalo).
+- **`src/data.py` com `load_dataset()`:** carrega o CSV com os tipos certos (datas UTC, inteiros e booleanos com falta, categorias ordenadas), para o notebook e a app usarem os mesmos dados.
+- **Testes offline** (`tests/test_dataset.py`) para a interpolação, as variáveis derivadas e os tipos do `load_dataset()`.
+- **Documentação:** dicionário das colunas e regras dos valores em falta em `docs/dataset.md`, secção 6 do README e `pandas`/`numpy` no `requirements.txt`.
