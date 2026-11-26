@@ -8,8 +8,9 @@ por jogo/hora/dia, fichas e estimativas diárias, cobertura e falhas.
 Ver [`review/README.md`](../review/README.md) e [`docs/review.md`](review.md).
 O workflow `update_review.yml` é executado apenas manualmente e publica os
 resultados alterados na pasta `review/` da `main`. Este passo já está
-implementado; os módulos `build_dataset.py` e `data.py`
-na árvore abaixo continuam a representar o processamento analítico planeado.
+implementado. `src/build_dataset.py` gera a partir de `review/` o dataset final
+`data/processed/steam_dataset.csv`, que `src/data.py` carrega com
+`load_dataset()`. Ver [`dataset.md`](dataset.md).
 
 ## Fluxo de dados
 
@@ -51,12 +52,13 @@ Steam-Analytics/
 │   ├── collect_players.py       recolha horária de jogadores
 │   ├── collect_store.py         recolha horária de loja e reviews resumidas
 │   ├── collect_daily.py         recolha diária da ficha da loja e SteamSpy
-│   ├── build_dataset.py         JSON brutos → CSV tratado
+│   ├── build_review.py          branch data → review/ (tabelas de revisão)
+│   ├── build_dataset.py         review/ → data/processed/steam_dataset.csv
 │   └── data.py                  load_dataset() (exigido pelo enunciado)
 ├── data/
 │   ├── cache/                   respostas das APIs (local, ignorado pelo git)
 │   ├── raw/                     JSON das recolhas
-│   └── processed/               CSV finais
+│   └── processed/               steam_dataset.csv (dataset final)
 ├── logs/                        logs de execução
 ├── tests/                       testes offline (python3 -m unittest discover -s tests)
 ├── notebooks/                   notebook final com os cabeçalhos do enunciado

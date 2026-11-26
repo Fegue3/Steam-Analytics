@@ -9,13 +9,14 @@ os resultados ficam na `main`; a branch `data` conserva os brutos.
 **Projeto de Ciência de Dados (UBI, MEI 2026/27).** Monitorização da atividade e da popularidade de 500 jogos da Steam: jogadores de hora a hora, preços, descontos e avaliações, em 5 categorias de 100 jogos.
 
 **Estado atual:** a seleção dos jogos e a recolha estão implementadas. O
-processamento para revisão está disponível em `src/build_review.py`;
-o notebook e a app continuam planeados. A estrutura do repositório está em
+processamento para revisão está em `src/build_review.py` e o dataset final de
+análise em `src/build_dataset.py` (ver secção 6); o notebook e a app continuam
+planeados. A estrutura do repositório está em
 [`docs/estrutura.md`](docs/estrutura.md).
 
 ## 1. Instalação
 
-Python 3.10+ e uma dependência (`requests`). Nenhuma API precisa de chave e não é preciso instalar o projeto.
+Python 3.10+ com `requests`, `pandas` e `numpy`. Nenhuma API precisa de chave e não é preciso instalar o projeto.
 
 ```bash
 pip install -r requirements.txt
@@ -121,3 +122,21 @@ pelo cron-job.org através da API do GitHub. Os crons do GitHub (cinco tentativa
 por hora e três por dia) ficam como reserva; só a primeira execução recolhe, as
 restantes terminam sem duplicar dados. Ver
 [`docs/agendamento.md`](docs/agendamento.md).
+
+## 6. Dataset final
+
+O dataset de análise tem uma linha por jogo e por hora (500 jogos × 336 horas)
+e junta jogadores, loja, ficha do jogo e SteamSpy, com valores em falta
+tratados e variáveis novas (tempo, jogadores normalizados, descontos, novas
+avaliações). Gera-se a partir de `review/`, sem pedidos às APIs:
+
+```bash
+python3 -m src.build_dataset    # gera data/processed/steam_dataset.csv
+```
+
+```python
+from src.data import load_dataset
+df = load_dataset()
+```
+
+Colunas, regras e valores em falta: [`docs/dataset.md`](docs/dataset.md).
